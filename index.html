@@ -953,7 +953,7 @@
     function doWrite(id, field, value) {
       var patch = {};
       patch[field] = value;
-      fs.updateDoc(fs.doc(db, "slots", id), patch).catch(function (err) {
+      fs.updateDoc(fs.doc(slotsCol, id), patch).catch(function (err) {
         console.error(err);
         toast("저장 실패: 인터넷 연결이나 설정을 확인해주세요.");
       });
@@ -1014,7 +1014,7 @@
         e.stopPropagation();
         if (refs.delBtn.classList.contains("armed")) {
           var name = refs.nameInput.value.trim() || "이 슬롯";
-          fs.deleteDoc(fs.doc(db, "slots", id)).catch(function (err) {
+          fs.deleteDoc(fs.doc(slotsCol, id)).catch(function (err) {
             console.error(err);
             toast("삭제 실패: 인터넷 연결이나 설정을 확인해주세요.");
           });
