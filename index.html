@@ -90,16 +90,31 @@
   .btn-primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
   .btn-ghost { background: transparent; border-color: var(--border); color: var(--text-muted); }
   .btn-ghost:hover { background: var(--surface-2); color: var(--text); }
-  .btn-bell.on { background: var(--accent-tint); border-color: var(--accent); color: var(--accent-strong); }
+  .btn-bell { display: inline-flex; align-items: center; gap: 8px; }
+  .btn-bell .bell-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--text-faint);
+    transition: background 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn-bell.state-on { background: var(--ok-tint); border-color: var(--ok); color: var(--text); }
+  .btn-bell.state-on .bell-dot { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-tint); }
+  .btn-bell.state-off { background: transparent; border-color: var(--border); color: var(--text-muted); }
+  .btn-bell.state-off .bell-dot { background: var(--text-faint); }
+  .btn-bell.state-blocked { background: var(--critical-tint); border-color: var(--critical); color: var(--critical); }
+  .btn-bell.state-blocked .bell-dot { background: var(--critical); box-shadow: 0 0 0 3px var(--critical-tint); }
 
   .summary { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 22px; }
   .summary-chip {
     display: flex; align-items: baseline; gap: 8px; background: var(--surface);
     border: 1px solid var(--border); border-radius: 999px; padding: 8px 16px 8px 13px;
-    font-size: 13px; color: var(--text-muted);
+    font-size: 13px; color: var(--text-muted); cursor: pointer;
   }
+  .summary-chip:hover { border-color: var(--border-strong); }
   .summary-chip .n { font-weight: 700; font-size: 15px; color: var(--text); font-variant-numeric: tabular-nums; }
   .summary-chip .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .summary-chip.active { border-width: 2px; padding: 7px 15px 7px 12px; color: var(--text); }
+  .summary-chip.active[data-status="ok"] { border-color: var(--ok); background: var(--ok-tint); }
+  .summary-chip.active[data-status="warn"] { border-color: var(--warn); background: var(--warn-tint); }
+  .summary-chip.active[data-status="critical"] { border-color: var(--critical); background: var(--critical-tint); }
 
   .threshold-note {
     font-size: 12px; color: var(--text-faint); margin-bottom: 22px;
@@ -282,7 +297,10 @@
       <h1>액상 교체 트래커</h1>
     </div>
     <div class="header-actions">
-      <button class="btn-ghost btn-bell" id="bellBtn" type="button">🔔 알림 받기</button>
+      <button class="btn-ghost btn-bell" id="bellBtn" type="button">
+        <span class="bell-dot" aria-hidden="true"></span>
+        <span class="bell-label">🔔 알림 받기</span>
+      </button>
       <button class="btn-primary" id="addBtn" type="button">+ 품목 추가</button>
     </div>
   </header>
@@ -290,9 +308,9 @@
   <div id="statusBanner"></div>
 
   <div class="summary" id="summary">
-    <span class="summary-chip"><span class="dot" style="background:var(--ok)"></span>정상 <span class="n" id="cntOk">0</span></span>
-    <span class="summary-chip"><span class="dot" style="background:var(--warn)"></span>곧 교체 <span class="n" id="cntWarn">0</span></span>
-    <span class="summary-chip"><span class="dot" style="background:var(--critical)"></span>교체 필요 <span class="n" id="cntCritical">0</span></span>
+    <button type="button" class="summary-chip" id="chipOk" data-status="ok" title="정상 품목만 보기"><span class="dot" style="background:var(--ok)"></span>정상 <span class="n" id="cntOk">0</span></button>
+    <button type="button" class="summary-chip" id="chipWarn" data-status="warn" title="곧 교체 품목만 보기"><span class="dot" style="background:var(--warn)"></span>곧 교체 <span class="n" id="cntWarn">0</span></button>
+    <button type="button" class="summary-chip" id="chipCritical" data-status="critical" title="교체 필요 품목만 보기"><span class="dot" style="background:var(--critical)"></span>교체 필요 <span class="n" id="cntCritical">0</span></button>
   </div>
 
   <p class="threshold-note">교체 경고 기준은 <strong>30일</strong>로 고정되어 있습니다 (25일부터 "곧 교체"로 표시, 30일이 지나면 "교체 필요" 알림). 목록은 <strong>교체가 임박한 순서로 자동 정렬</strong>됩니다. 기준을 바꾸고 싶으시면 언제든 요청해주세요.</p>
@@ -412,6 +430,14 @@
     var slotCountEl = document.getElementById("slotCount");
     var statusBanner = document.getElementById("statusBanner");
     var bellBtn = document.getElementById("bellBtn");
+    var bellLabel = bellBtn.querySelector(".bell-label");
+
+    var chipEls = {
+      ok: document.getElementById("chipOk"),
+      warn: document.getElementById("chipWarn"),
+      critical: document.getElementById("chipCritical")
+    };
+    var statusFilter = null; // null | "ok" | "warn" | "critical" — 요약 칩을 눌러 해당 상태만 보기
 
     var slotElements = new Map(); // docId -> element refs
     var pendingWrites = new Map(); // debounce timers, keyed "id:field"
@@ -503,26 +529,28 @@
 
     /* ---------- browser 알림(벨) ---------- */
 
+    function setBellState(state, label) {
+      bellBtn.classList.remove("state-on", "state-off", "state-blocked");
+      bellBtn.classList.add(state);
+      bellLabel.textContent = label;
+    }
+
     function refreshBellUI() {
       if (!NOTIFICATIONS_ENABLED) {
-        bellBtn.textContent = "🔕 알림 기능 꺼짐";
-        bellBtn.classList.remove("on");
+        setBellState("state-off", "🔕 알림 기능 꺼짐");
         return;
       }
       if (!("Notification" in window)) {
-        bellBtn.textContent = "🔕 알림 미지원 브라우저";
+        setBellState("state-off", "🔕 알림 미지원 브라우저");
         bellBtn.disabled = true;
         return;
       }
       if (Notification.permission === "granted") {
-        bellBtn.textContent = "🔔 알림 켜짐";
-        bellBtn.classList.add("on");
+        setBellState("state-on", "🔔 알림 켜짐");
       } else if (Notification.permission === "denied") {
-        bellBtn.textContent = "🔕 알림 차단됨 (브라우저 설정에서 허용 필요)";
-        bellBtn.classList.remove("on");
+        setBellState("state-blocked", "🔕 알림 차단됨 (브라우저 설정에서 허용 필요)");
       } else {
-        bellBtn.textContent = "🔔 알림 받기";
-        bellBtn.classList.remove("on");
+        setBellState("state-off", "🔔 알림 받기");
       }
     }
 
@@ -661,18 +689,40 @@
       var visible = 0;
       slotElements.forEach(function (refs) {
         var name = refs.nameInput.value.toLowerCase();
-        var match = !q || name.indexOf(q) !== -1;
+        var matchesSearch = !q || name.indexOf(q) !== -1;
+        var status = refs.card.getAttribute("data-status");
+        var matchesStatus = !statusFilter || status === statusFilter;
+        var match = matchesSearch && matchesStatus;
         refs.card.classList.toggle("hidden-by-search", !match);
         if (match) visible++;
       });
       if (q && visible === 0) {
         renderNoResultsSuggestions(qRaw);
         noResults.style.display = "block";
+      } else if (!q && statusFilter && visible === 0) {
+        noResults.innerHTML = "";
+        var msg = document.createElement("p");
+        msg.className = "add-modal-hint";
+        msg.textContent = "해당 상태의 품목이 없습니다.";
+        noResults.appendChild(msg);
+        noResults.style.display = "block";
       } else {
         noResults.style.display = "none";
       }
     }
     document.getElementById("searchInput").addEventListener("input", applyFilter);
+
+    // 요약 칩(정상/곧 교체/교체 필요) 클릭 시 해당 상태만 보여줍니다. 같은 칩을 다시 누르면 전체 보기로 돌아갑니다.
+    function setStatusFilter(status) {
+      statusFilter = statusFilter === status ? null : status;
+      Object.keys(chipEls).forEach(function (key) {
+        chipEls[key].classList.toggle("active", statusFilter === key);
+      });
+      applyFilter();
+    }
+    chipEls.ok.addEventListener("click", function () { setStatusFilter("ok"); });
+    chipEls.warn.addEventListener("click", function () { setStatusFilter("warn"); });
+    chipEls.critical.addEventListener("click", function () { setStatusFilter("critical"); });
 
     // 상단 검색창에 입력했는데 지금 목록엔 없는 경우 — 카탈로그에서 찾아 바로 추가할 수 있게 도와줍니다.
     function renderNoResultsSuggestions(qRaw) {
