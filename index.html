@@ -95,12 +95,12 @@
     width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--text-faint);
     transition: background 0.15s ease, box-shadow 0.15s ease;
   }
-  .btn-bell.state-on { background: var(--ok-tint); border-color: var(--ok); color: var(--text); }
-  .btn-bell.state-on .bell-dot { background: var(--ok); box-shadow: 0 0 0 3px var(--ok-tint); }
-  .btn-bell.state-off { background: transparent; border-color: var(--border); color: var(--text-muted); }
-  .btn-bell.state-off .bell-dot { background: var(--text-faint); }
-  .btn-bell.state-blocked { background: var(--critical-tint); border-color: var(--critical); color: var(--critical); }
-  .btn-bell.state-blocked .bell-dot { background: var(--critical); box-shadow: 0 0 0 3px var(--critical-tint); }
+  .btn-bell.state-on { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .btn-bell.state-on .bell-dot { background: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,0.45); }
+  .btn-bell.state-on:hover { background: var(--ok); filter: brightness(1.06); }
+  .btn-bell.state-off { background: var(--critical); border-color: var(--critical); color: #fff; }
+  .btn-bell.state-off .bell-dot { background: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,0.45); }
+  .btn-bell.state-off:hover { background: var(--critical); filter: brightness(1.06); }
 
   .summary { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 22px; }
   .summary-chip {
@@ -419,6 +419,20 @@
     // 이후 실제로 새로 상태가 바뀌는 품목만 (여러 개면 하나로 모아서) 알립니다.
     var NOTIFICATIONS_ENABLED = true;
 
+    // 알림 버튼을 눌러 이 기기에서 알림을 켜고 끌 수 있습니다 (브라우저 알림 권한 자체는 되돌릴 수 없지만,
+    // 이 설정을 꺼두면 권한이 있어도 이 앱은 알림을 울리지 않습니다). 기기별로 기억됩니다.
+    var NOTIFY_PREF_KEY = "vapeTrackerNotifyPref";
+    function loadNotifyPref() {
+      try {
+        var v = localStorage.getItem(NOTIFY_PREF_KEY);
+        return v === null ? true : v === "on";
+      } catch (e) { return true; }
+    }
+    function saveNotifyPref(on) {
+      try { localStorage.setItem(NOTIFY_PREF_KEY, on ? "on" : "off"); } catch (e) { /* 저장 불가 브라우저는 무시 */ }
+    }
+    var notifyPref = loadNotifyPref();
+
     var ORIGINAL_TITLE = document.title;
 
     var grid = document.getElementById("grid");
@@ -530,7 +544,7 @@
     /* ---------- browser 알림(벨) ---------- */
 
     function setBellState(state, label) {
-      bellBtn.classList.remove("state-on", "state-off", "state-blocked");
+      bellBtn.classList.remove("state-on", "state-off");
       bellBtn.classList.add(state);
       bellLabel.textContent = label;
     }
@@ -545,40 +559,64 @@
         bellBtn.disabled = true;
         return;
       }
-      if (Notification.permission === "granted") {
+      if (Notification.permission === "denied") {
+        setBellState("state-off", "🔕 알림 차단됨 (브라우저 설정 필요)");
+        return;
+      }
+      if (notifyPref && Notification.permission === "granted") {
         setBellState("state-on", "🔔 알림 켜짐");
-      } else if (Notification.permission === "denied") {
-        setBellState("state-blocked", "🔕 알림 차단됨 (브라우저 설정에서 허용 필요)");
       } else {
-        setBellState("state-off", "🔔 알림 받기");
+        setBellState("state-off", "🔕 알림 꺼짐");
       }
     }
 
+    // 버튼을 누를 때마다 이 기기에서 알림을 켜고 끕니다. (브라우저 알림 권한 자체를 취소할 수는 없지만,
+    // notifyPref를 꺼두면 권한이 있어도 이 앱은 알림을 울리지 않습니다 — 실제로 켜짐/꺼짐이 토글됩니다.)
     bellBtn.addEventListener("click", function () {
       if (!NOTIFICATIONS_ENABLED) {
         toast("알림 기능이 꺼져 있습니다. 화면의 색상·배지로 교체 시기를 확인해주세요.");
         return;
       }
       if (!("Notification" in window)) return;
-      if (Notification.permission === "granted") {
-        toast("이미 알림이 켜져 있어요. 이 기기·이 브라우저에서 탭을 열어두면 알림이 울립니다.");
-        return;
-      }
+
       if (Notification.permission === "denied") {
         toast("브라우저에서 알림이 차단되어 있어요. 주소창 옆 자물쇠 아이콘에서 알림을 허용해주세요.");
         return;
       }
-      Notification.requestPermission().then(function () {
+
+      if (notifyPref && Notification.permission === "granted") {
+        // 켜져 있음 → 끄기
+        notifyPref = false;
+        saveNotifyPref(false);
         refreshBellUI();
-        if (Notification.permission === "granted") {
+        toast("알림을 껐습니다.");
+        return;
+      }
+
+      if (Notification.permission === "granted") {
+        // 권한은 있지만 앱에서 꺼둔 상태 → 켜기
+        notifyPref = true;
+        saveNotifyPref(true);
+        refreshBellUI();
+        toast("알림을 켰습니다.");
+        checkAlarms();
+        return;
+      }
+
+      // 아직 권한을 요청한 적 없음 → 브라우저 권한 요청
+      Notification.requestPermission().then(function (result) {
+        if (result === "granted") {
+          notifyPref = true;
+          saveNotifyPref(true);
           toast("알림이 켜졌습니다. 이 탭이 열려 있는 동안 교체 경고를 알려드려요.");
           checkAlarms();
         }
+        refreshBellUI();
       });
     });
 
     function notify(title, body) {
-      if (!NOTIFICATIONS_ENABLED) return;
+      if (!NOTIFICATIONS_ENABLED || !notifyPref) return;
       if (!("Notification" in window) || Notification.permission !== "granted") return;
       try {
         var n = new Notification(title, { body: body, icon: undefined });
