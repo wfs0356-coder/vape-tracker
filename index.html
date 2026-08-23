@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>액상 교체 트래커</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="시연대 액상별 마지막 교체일을 기록하고, 교체 시점이 다가오면 색으로 알려주는 매장용 관리 도구" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #f5f4f1;
+    --surface: #ffffff;
+    --surface-2: #ece9e3;
+    --surface-3: #e2ded5;
+    --text: #1b1f22;
+    --text-muted: #5c6367;
+    --text-faint: #8b9195;
+    --border: #dcd8d0;
+    --border-strong: #c7c2b8;
+    --accent: #0e7c86;
+    --accent-strong: #0a5c64;
+    --accent-tint: #dcefee;
+    --ok: #2f8f52;
+    --ok-tint: #e2f2e6;
+    --warn: #b57a12;
+    --warn-tint: #faf0d9;
+    --critical: #bf4530;
+    --critical-tint: #fbe6e0;
+    --neutral-tint: #eceae5;
+    --shadow: 0 1px 2px rgba(30, 26, 14, 0.04), 0 6px 20px -8px rgba(30, 26, 14, 0.12);
+    --radius: 10px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14181a; --surface: #1c2124; --surface-2: #23292c; --surface-3: #2b3235;
+      --text: #eceeec; --text-muted: #a3aaad; --text-faint: #767e81;
+      --border: #2c3336; --border-strong: #3a4245;
+      --accent: #45b8c0; --accent-strong: #6fcbd1; --accent-tint: #1c3538;
+      --ok: #4fb872; --ok-tint: #1c3324; --warn: #d9a53c; --warn-tint: #3a3018;
+      --critical: #e2705a; --critical-tint: #3c231e; --neutral-tint: #23292c;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -8px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14181a; --surface: #1c2124; --surface-2: #23292c; --surface-3: #2b3235;
+    --text: #eceeec; --text-muted: #a3aaad; --text-faint: #767e81;
+    --border: #2c3336; --border-strong: #3a4245;
+    --accent: #45b8c0; --accent-strong: #6fcbd1; --accent-tint: #1c3538;
+    --ok: #4fb872; --ok-tint: #1c3324; --warn: #d9a53c; --warn-tint: #3a3018;
+    --critical: #e2705a; --critical-tint: #3c231e; --neutral-tint: #23292c;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -8px rgba(0,0,0,0.5);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: "IBM Plex Sans", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    -webkit-font-smoothing: antialiased; min-height: 100vh; overflow-x: hidden;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 20px 80px; }
+
+  header {
+    display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
+    gap: 16px 24px; padding-bottom: 22px; border-bottom: 1px solid var(--border); margin-bottom: 22px;
+  }
+  .brand-eyebrow {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 6px; font-weight: 600;
+  }
+  h1 {
+    font-family: "Big Shoulders Display", sans-serif; font-weight: 800; font-size: 34px;
+    letter-spacing: 0.01em; margin: 0; line-height: 1; color: var(--text); text-wrap: balance;
+  }
+  .header-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  button {
+    font-family: inherit; cursor: pointer; border-radius: 7px; border: 1px solid var(--border-strong);
+    background: var(--surface); color: var(--text); font-size: 13.5px; font-weight: 600;
+    padding: 9px 14px; transition: background 0.12s ease, border-color 0.12s ease, transform 0.05s ease;
+  }
+  button:hover { background: var(--surface-2); }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fbfdfd; }
+  .btn-primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+  .btn-ghost { background: transparent; border-color: var(--border); color: var(--text-muted); }
+  .btn-ghost:hover { background: var(--surface-2); color: var(--text); }
+
+  .summary { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+  .summary-chip {
+    display: flex; align-items: baseline; gap: 7px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 999px; padding: 7px 14px 7px 12px;
+    font-size: 13px; color: var(--text-muted);
+  }
+  .summary-chip .n { font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: 15px; color: var(--text); }
+  .summary-chip .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .search-box { position: relative; flex: 1; min-width: 180px; max-width: 320px; }
+  .search-box input {
+    width: 100%; padding: 8px 12px 8px 32px; border-radius: 7px; border: 1px solid var(--border-strong);
+    background: var(--surface); color: var(--text); font-size: 13.5px;
+  }
+  .search-box svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-faint); pointer-events: none; }
+
+  #statusBanner {
+    display: none; align-items: center; gap: 8px; border-radius: 8px; padding: 10px 14px;
+    font-size: 13px; font-weight: 600; margin-bottom: 16px; border: 1px solid transparent;
+  }
+  #statusBanner.show { display: flex; }
+  #statusBanner.offline { background: var(--warn-tint); color: var(--warn); border-color: var(--warn); }
+  #statusBanner.error { background: var(--critical-tint); color: var(--critical); border-color: var(--critical); }
+
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--border-strong);
+    border-radius: var(--radius); padding: 16px 16px 14px; box-shadow: var(--shadow);
+    display: flex; flex-direction: column; gap: 10px; transition: border-left-color 0.2s ease;
+  }
+  .card[data-status="ok"] { border-left-color: var(--ok); }
+  .card[data-status="warn"] { border-left-color: var(--warn); }
+  .card[data-status="critical"] { border-left-color: var(--critical); }
+  .card.hidden-by-search { display: none; }
+
+  .card-top { display: flex; gap: 8px; align-items: flex-start; }
+  .field-name {
+    flex: 1; font-family: "IBM Plex Sans", sans-serif; font-weight: 600; font-size: 16px;
+    border: 1px solid transparent; border-radius: 6px; padding: 5px 7px; background: transparent;
+    color: var(--text); min-width: 0;
+  }
+  .field-name:hover, .field-name:focus { background: var(--surface-2); border-color: var(--border); }
+  .field-name::placeholder { color: var(--text-faint); font-weight: 500; }
+
+  .del-btn {
+    flex: none; width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;
+    border-radius: 6px; border: 1px solid transparent; background: transparent; color: var(--text-faint);
+    font-size: 15px; line-height: 1;
+  }
+  .del-btn:hover { background: var(--critical-tint); color: var(--critical); border-color: var(--critical); }
+  .del-btn.armed { background: var(--critical); color: #fff; border-color: var(--critical); font-size: 11px; width: auto; padding: 0 9px; font-weight: 700; }
+
+  .field-memo {
+    font-size: 13px; border: 1px solid transparent; border-radius: 6px; padding: 5px 7px;
+    background: transparent; color: var(--text-muted); min-width: 0;
+  }
+  .field-memo:hover, .field-memo:focus { background: var(--surface-2); border-color: var(--border); color: var(--text); }
+  .field-memo::placeholder { color: var(--text-faint); }
+
+  .card-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--text-muted); }
+  .card-row .label { flex: none; font-weight: 500; }
+  .card-row .field-group { display: flex; align-items: center; gap: 6px; }
+
+  input[type="date"], input[type="number"] {
+    font-family: "IBM Plex Mono", monospace; font-size: 12.5px; border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 6px; background: var(--surface-2); color: var(--text);
+  }
+  input[type="date"] { width: 132px; }
+  input[type="number"] { width: 48px; text-align: right; }
+  .today-btn { padding: 4px 8px; font-size: 11.5px; border-radius: 6px; }
+
+  .status-badge {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px;
+    padding: 8px 10px; border-radius: 7px; background: var(--neutral-tint);
+  }
+  .status-badge .elapsed { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 600; color: var(--text); }
+  .status-badge .elapsed .unit { font-family: "IBM Plex Sans", sans-serif; font-weight: 500; font-size: 11px; color: var(--text-muted); margin-left: 3px; }
+  .status-pill { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; letter-spacing: 0.01em; }
+  .status-badge[data-status="ok"] { background: var(--ok-tint); }
+  .status-badge[data-status="ok"] .status-pill { background: var(--ok); color: #fff; }
+  .status-badge[data-status="warn"] { background: var(--warn-tint); }
+  .status-badge[data-status="warn"] .status-pill { background: var(--warn); color: #fff; }
+  .status-badge[data-status="critical"] { background: var(--critical-tint); }
+  .status-badge[data-status="critical"] .status-pill { background: var(--critical); color: #fff; }
+  .status-badge[data-status="unset"] .status-pill { background: var(--surface-3); color: var(--text-muted); }
+
+  #emptyState {
+    display: none; flex-direction: column; align-items: center; gap: 10px; text-align: center;
+    padding: 60px 20px; border: 1px dashed var(--border-strong); border-radius: var(--radius); color: var(--text-muted);
+  }
+  #emptyState p { margin: 0; font-size: 14px; max-width: 320px; }
+  #noResults { display: none; padding: 40px 20px; text-align: center; color: var(--text-faint); font-size: 13.5px; }
+  #loadingState { padding: 60px 20px; text-align: center; color: var(--text-faint); font-size: 13.5px; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%) translateY(12px);
+    background: var(--text); color: var(--bg); font-size: 13px; font-weight: 500; padding: 10px 16px;
+    border-radius: 8px; box-shadow: var(--shadow); opacity: 0; pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease; z-index: 50;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  #setupOverlay {
+    position: fixed; inset: 0; background: var(--bg); z-index: 100; display: none;
+    align-items: center; justify-content: center; padding: 24px;
+  }
+  #setupOverlay.show { display: flex; }
+  .setup-box {
+    max-width: 520px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 28px 26px; box-shadow: var(--shadow);
+  }
+  .setup-box h2 { font-family: "Big Shoulders Display", sans-serif; font-size: 24px; margin: 0 0 10px; }
+  .setup-box p { font-size: 13.5px; line-height: 1.6; color: var(--text-muted); margin: 0 0 10px; }
+  .setup-box code {
+    display: block; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 10px 12px; font-family: "IBM Plex Mono", monospace; font-size: 12px; margin: 10px 0; white-space: pre-wrap;
+  }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div id="setupOverlay">
+  <div class="setup-box">
+    <h2>설정이 필요합니다</h2>
+    <p>이 사이트는 Firebase(무료 데이터베이스)와 연결되어야 여러 기기에서 데이터를 함께 볼 수 있습니다. 아직 연결 정보(firebaseConfig)가 입력되지 않았습니다.</p>
+    <p><code>index.html</code> 파일 안에서 <strong>firebaseConfig</strong> 부분을 본인의 Firebase 프로젝트 값으로 바꿔주세요. 자세한 방법은 함께 받으신 README.md 파일을 참고하세요.</p>
+  </div>
+</div>
+
+<div class="wrap">
+  <header>
+    <div>
+      <p class="brand-eyebrow">시연대 관리</p>
+      <h1>액상 교체 트래커</h1>
+    </div>
+    <div class="header-actions">
+      <button class="btn-ghost" id="sortBtn" type="button">교체 임박순 정렬</button>
+      <button class="btn-primary" id="addBtn" type="button">+ 슬롯 추가</button>
+    </div>
+  </header>
+
+  <div id="statusBanner"></div>
+
+  <div class="summary" id="summary">
+    <span class="summary-chip"><span class="dot" style="background:var(--ok)"></span>정상 <span class="n" id="cntOk">0</span></span>
+    <span class="summary-chip"><span class="dot" style="background:var(--warn)"></span>곧 교체 <span class="n" id="cntWarn">0</span></span>
+    <span class="summary-chip"><span class="dot" style="background:var(--critical)"></span>교체 필요 <span class="n" id="cntCritical">0</span></span>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-box">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input type="text" id="searchInput" placeholder="액상 이름으로 검색" autocomplete="off" />
+    </div>
+    <span style="font-size:12px; color:var(--text-faint); font-family:'IBM Plex Mono',monospace;" id="slotCount">0개 슬롯</span>
+  </div>
+
+  <div id="loadingState">불러오는 중…</div>
+  <div id="grid" style="display:none;"></div>
+
+  <div id="emptyState">
+    <p><strong style="color:var(--text)">등록된 시연 슬롯이 없습니다.</strong><br />시연대의 각 자리에 맞춰 슬롯을 추가하고, 액상을 교체할 때마다 '오늘로 설정'을 눌러 기록하세요.</p>
+    <button class="btn-primary" id="emptyAddBtn" type="button">+ 첫 슬롯 추가</button>
+  </div>
+
+  <div id="noResults">검색 결과가 없습니다.</div>
+</div>
+
+<div id="toast"></div>
+
+<template id="cardTemplate">
+  <div class="card" data-status="unset">
+    <div class="card-top">
+      <input type="text" class="field-name" placeholder="액상 이름 / 향" maxlength="60" />
+      <button class="del-btn" type="button" title="슬롯 삭제">✕</button>
+    </div>
+    <input type="text" class="field-memo" placeholder="메모 (브랜드, 농도 등)" maxlength="80" />
+    <div class="card-row">
+      <span class="label">마지막 교체일</span>
+      <div class="field-group">
+        <input type="date" class="field-date" />
+        <button class="today-btn" type="button">오늘로 설정</button>
+      </div>
+    </div>
+    <div class="card-row">
+      <span class="label">교체 경고 기준</span>
+      <div class="field-group">
+        <input type="number" class="field-threshold" min="1" max="90" value="5" />
+        <span style="font-size:11.5px;">일</span>
+      </div>
+    </div>
+    <div class="status-badge" data-status="unset">
+      <span class="elapsed">—</span>
+      <span class="status-pill">날짜 미설정</span>
+    </div>
+  </div>
+</template>
+
+<!--
+  ============================================================
+  Firebase 연결 설정 (필수)
+  아래 firebaseConfig 값을 본인의 Firebase 프로젝트 값으로 교체하세요.
+  방법은 README.md 를 참고하세요.
+  ============================================================
+-->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import {
+    getFirestore, collection, addDoc, doc, updateDoc, deleteDoc,
+    onSnapshot, query, orderBy
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+  // 🔧 여기를 Firebase 콘솔에서 복사한 본인의 설정 값으로 바꿔주세요.
+  const firebaseConfig = {
+    apiKey: "AIzaSyDPeY83W8EpCvTx69nt6h4La-0sZTpFkeI",
+    authDomain: "vape-shop-tracker-ec229.firebaseapp.com",
+    projectId: "vape-shop-tracker-ec229",
+    storageBucket: "vape-shop-tracker-ec229.firebasestorage.app",
+    messagingSenderId: "325211225234",
+    appId: "1:325211225234:web:25020263ea6563d90eba4b"
+  };
+
+  const isConfigured = firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY";
+
+  if (!isConfigured) {
+    document.getElementById("setupOverlay").classList.add("show");
+    document.getElementById("loadingState").style.display = "none";
+  } else {
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const slotsCol = collection(db, "slots");
+    initApp(db, slotsCol, { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy });
+  }
+
+  function initApp(db, slotsCol, fs) {
+    "use strict";
+
+    var grid = document.getElementById("grid");
+    var emptyState = document.getElementById("emptyState");
+    var noResults = document.getElementById("noResults");
+    var loadingState = document.getElementById("loadingState");
+    var cardTemplate = document.getElementById("cardTemplate");
+    var toastEl = document.getElementById("toast");
+    var slotCountEl = document.getElementById("slotCount");
+    var statusBanner = document.getElementById("statusBanner");
+
+    var slotElements = new Map(); // docId -> element refs
+    var pendingWrites = new Map(); // debounce timers, keyed "id:field"
+
+    function todayISO() {
+      var d = new Date();
+      var tz = d.getTimezoneOffset() * 60000;
+      return new Date(d - tz).toISOString().slice(0, 10);
+    }
+
+    function daysBetween(isoDate) {
+      if (!isoDate) return null;
+      var start = new Date(isoDate + "T00:00:00");
+      var now = new Date();
+      var todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      return Math.floor((todayMid - start) / 86400000);
+    }
+
+    function toast(msg) {
+      toastEl.textContent = msg;
+      toastEl.classList.add("show");
+      clearTimeout(toast._t);
+      toast._t = setTimeout(function () { toastEl.classList.remove("show"); }, 2200);
+    }
+
+    function showBanner(kind, msg) {
+      statusBanner.className = "show " + kind;
+      statusBanner.textContent = msg;
+    }
+    function hideBanner() {
+      statusBanner.className = "";
+      statusBanner.textContent = "";
+    }
+
+    /* ---------- status computation (local, from currently-shown field values) ---------- */
+
+    function recomputeCard(refs) {
+      var dateVal = refs.dateInput.value;
+      var threshold = parseInt(refs.thresholdInput.value, 10) || 5;
+      var elapsedEl = refs.badge.querySelector(".elapsed");
+      var pillEl = refs.badge.querySelector(".status-pill");
+      var status;
+
+      if (!dateVal) {
+        status = "unset";
+        elapsedEl.innerHTML = "—";
+        pillEl.textContent = "날짜 미설정";
+      } else {
+        var d = daysBetween(dateVal);
+        var warnAt = Math.max(0, threshold - 2);
+        if (d >= threshold) status = "critical";
+        else if (d >= warnAt) status = "warn";
+        else status = "ok";
+        elapsedEl.innerHTML = d === 0 ? "오늘 교체" : d + '<span class="unit">일 경과</span>';
+        pillEl.textContent = status === "critical" ? "교체 필요" : status === "warn" ? "곧 교체" : "정상";
+      }
+      refs.badge.setAttribute("data-status", status);
+      refs.card.setAttribute("data-status", status);
+      return status;
+    }
+
+    function recomputeAll() {
+      var counts = { ok: 0, warn: 0, critical: 0 };
+      var total = slotElements.size;
+      slotElements.forEach(function (refs) {
+        var s = recomputeCard(refs);
+        if (counts[s] !== undefined) counts[s]++;
+      });
+      document.getElementById("cntOk").textContent = counts.ok;
+      document.getElementById("cntWarn").textContent = counts.warn;
+      document.getElementById("cntCritical").textContent = counts.critical;
+      slotCountEl.textContent = total + "개 슬롯";
+      emptyState.style.display = total === 0 ? "flex" : "none";
+      grid.style.display = total === 0 ? "none" : "grid";
+      applyFilter();
+    }
+
+    function applyFilter() {
+      var q = document.getElementById("searchInput").value.trim().toLowerCase();
+      var visible = 0;
+      slotElements.forEach(function (refs) {
+        var name = refs.nameInput.value.toLowerCase();
+        var memo = refs.memoInput.value.toLowerCase();
+        var match = !q || name.indexOf(q) !== -1 || memo.indexOf(q) !== -1;
+        refs.card.classList.toggle("hidden-by-search", !match);
+        if (match) visible++;
+      });
+      noResults.style.display = slotElements.size > 0 && visible === 0 ? "block" : "none";
+    }
+    document.getElementById("searchInput").addEventListener("input", applyFilter);
+
+    /* ---------- writes (debounced for text/number, immediate for date/delete) ---------- */
+
+    function writeField(id, field, value, opts) {
+      opts = opts || {};
+      var key = id + ":" + field;
+      if (opts.immediate) {
+        clearTimeout(pendingWrites.get(key));
+        pendingWrites.delete(key);
+        doWrite(id, field, value);
+        return;
+      }
+      clearTimeout(pendingWrites.get(key));
+      pendingWrites.set(key, setTimeout(function () {
+        pendingWrites.delete(key);
+        doWrite(id, field, value);
+      }, 500));
+    }
+
+    function doWrite(id, field, value) {
+      var patch = {};
+      patch[field] = value;
+      fs.updateDoc(fs.doc(db, "slots", id), patch).catch(function (err) {
+        console.error(err);
+        toast("저장 실패: 인터넷 연결이나 설정을 확인해주세요.");
+      });
+    }
+
+    /* ---------- card creation / wiring ---------- */
+
+    function createCardElement(id) {
+      var frag = cardTemplate.content.cloneNode(true);
+      var card = frag.querySelector(".card");
+      var refs = {
+        card: card,
+        nameInput: card.querySelector(".field-name"),
+        memoInput: card.querySelector(".field-memo"),
+        dateInput: card.querySelector(".field-date"),
+        thresholdInput: card.querySelector(".field-threshold"),
+        todayBtn: card.querySelector(".today-btn"),
+        delBtn: card.querySelector(".del-btn"),
+        badge: card.querySelector(".status-badge")
+      };
+
+      refs.nameInput.addEventListener("input", function () {
+        writeField(id, "name", refs.nameInput.value);
+        applyFilter();
+      });
+      refs.memoInput.addEventListener("input", function () {
+        writeField(id, "memo", refs.memoInput.value);
+        applyFilter();
+      });
+      refs.dateInput.addEventListener("change", function () {
+        writeField(id, "changedDate", refs.dateInput.value || null, { immediate: true });
+        recomputeCard(refs);
+        recomputeAll();
+      });
+      refs.thresholdInput.addEventListener("input", function () {
+        var v = parseInt(refs.thresholdInput.value, 10);
+        if (isNaN(v)) return;
+        writeField(id, "thresholdDays", v);
+        recomputeCard(refs);
+        recomputeAll();
+      });
+      refs.todayBtn.addEventListener("click", function () {
+        refs.dateInput.value = todayISO();
+        writeField(id, "changedDate", refs.dateInput.value, { immediate: true });
+        recomputeCard(refs);
+        recomputeAll();
+        toast("오늘 날짜로 기록했습니다.");
+      });
+      refs.delBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        if (refs.delBtn.classList.contains("armed")) {
+          var name = refs.nameInput.value.trim() || "이 슬롯";
+          fs.deleteDoc(fs.doc(db, "slots", id)).catch(function (err) {
+            console.error(err);
+            toast("삭제 실패: 인터넷 연결이나 설정을 확인해주세요.");
+          });
+          toast(name + " 삭제됨");
+        } else {
+          disarmAllDeleteButtons();
+          refs.delBtn.classList.add("armed");
+          refs.delBtn.textContent = "삭제 확인";
+        }
+      });
+
+      grid.appendChild(card);
+      slotElements.set(id, refs);
+      return refs;
+    }
+
+    function disarmAllDeleteButtons() {
+      slotElements.forEach(function (refs) {
+        refs.delBtn.classList.remove("armed");
+        refs.delBtn.textContent = "✕";
+      });
+    }
+    document.addEventListener("click", function (e) {
+      if (!e.target.closest(".del-btn")) disarmAllDeleteButtons();
+    });
+
+    /* ---------- remote -> local reconciliation ---------- */
+
+    function upsertFromRemote(id, data) {
+      var refs = slotElements.get(id);
+      if (!refs) refs = createCardElement(id);
+
+      if (document.activeElement !== refs.nameInput) refs.nameInput.value = data.name || "";
+      if (document.activeElement !== refs.memoInput) refs.memoInput.value = data.memo || "";
+      if (document.activeElement !== refs.dateInput) refs.dateInput.value = data.changedDate || "";
+      if (document.activeElement !== refs.thresholdInput) {
+        refs.thresholdInput.value = (data.thresholdDays || 5);
+      }
+      recomputeCard(refs);
+    }
+
+    function removeCard(id) {
+      var refs = slotElements.get(id);
+      if (refs) {
+        refs.card.remove();
+        slotElements.delete(id);
+      }
+    }
+
+    /* ---------- add / sort ---------- */
+
+    document.getElementById("addBtn").addEventListener("click", addSlot);
+    document.getElementById("emptyAddBtn").addEventListener("click", addSlot);
+
+    function addSlot() {
+      fs.addDoc(slotsCol, {
+        name: "",
+        memo: "",
+        changedDate: null,
+        thresholdDays: 5,
+        order: Date.now()
+      }).then(function (ref) {
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            var refs = slotElements.get(ref.id);
+            if (refs) refs.nameInput.focus();
+          });
+        });
+      }).catch(function (err) {
+        console.error(err);
+        toast("추가 실패: 인터넷 연결이나 설정을 확인해주세요.");
+      });
+    }
+
+    document.getElementById("sortBtn").addEventListener("click", function () {
+      var cards = Array.from(slotElements.values());
+      var rank = { critical: 0, warn: 1, ok: 2, unset: 3 };
+      cards.sort(function (a, b) {
+        var ra = rank[a.card.getAttribute("data-status")];
+        var rb = rank[b.card.getAttribute("data-status")];
+        if (ra !== rb) return ra - rb;
+        var da = daysBetween(a.dateInput.value);
+        var db2 = daysBetween(b.dateInput.value);
+        return (db2 === null ? -1 : db2) - (da === null ? -1 : da);
+      });
+      cards.forEach(function (refs) { grid.appendChild(refs.card); });
+      toast("교체 임박순으로 정렬했습니다 (이 화면에서만 적용).");
+    });
+
+    /* ---------- realtime subscription ---------- */
+
+    var q = fs.query(slotsCol, fs.orderBy("order"));
+    fs.onSnapshot(q, function (snapshot) {
+      loadingState.style.display = "none";
+      var seen = new Set();
+      snapshot.forEach(function (docSnap) {
+        seen.add(docSnap.id);
+        upsertFromRemote(docSnap.id, docSnap.data());
+      });
+      Array.from(slotElements.keys()).forEach(function (id) {
+        if (!seen.has(id)) removeCard(id);
+      });
+      recomputeAll();
+    }, function (err) {
+      console.error(err);
+      loadingState.style.display = "none";
+      showBanner("error", "데이터를 불러오지 못했습니다. Firebase 설정(firebaseConfig)과 Firestore 보안 규칙을 확인해주세요.");
+    });
+
+    /* ---------- connectivity banner & periodic refresh (day rollover) ---------- */
+
+    function updateConnectivity() {
+      if (!navigator.onLine) showBanner("offline", "오프라인 상태입니다 — 인터넷이 다시 연결되면 자동으로 동기화됩니다.");
+      else hideBanner();
+    }
+    window.addEventListener("online", updateConnectivity);
+    window.addEventListener("offline", updateConnectivity);
+    updateConnectivity();
+
+    setInterval(recomputeAll, 20000);
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden) recomputeAll();
+    });
+  }
+</script>
+</body>
+</html>

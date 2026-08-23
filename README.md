@@ -1,0 +1,111 @@
+# 액상 교체 트래커 — 설치 가이드
+
+시연대의 각 액상을 마지막으로 교체한 날짜를 기록하고, 교체 시점이 다가오면 색으로 알려주는 웹사이트입니다. 여러 직원이 각자의 폰/PC에서 접속해도 같은 데이터를 실시간으로 함께 봅니다.
+
+파일은 두 개뿐입니다.
+- `index.html` — 실제 웹사이트 (이 파일 하나만 서버에 올리면 됩니다)
+- `README.md` — 이 설명서 (서버에 올릴 필요 없음)
+
+여러 기기에서 데이터를 함께 보려면 무료 데이터베이스인 **Firebase(Firestore)**를 연결해야 합니다. 아래 순서대로 따라 하시면 됩니다. 전체 과정은 10~15분 정도 걸립니다.
+
+---
+
+## 1단계. Firebase 프로젝트 만들기
+
+1. [https://console.firebase.google.com](https://console.firebase.google.com) 접속 후 구글 계정으로 로그인합니다.
+2. **프로젝트 추가**를 누르고 이름을 입력합니다 (예: `vape-shop-tracker`).
+3. Google Analytics 사용 여부는 꺼도 됩니다. **프로젝트 만들기**를 누릅니다.
+
+## 2단계. Firestore 데이터베이스 만들기
+
+1. 왼쪽 메뉴에서 **빌드 → Firestore Database**로 들어갑니다.
+2. **데이터베이스 만들기**를 누릅니다.
+3. 위치는 가까운 지역(예: `asia-northeast3` 서울)을 선택합니다.
+4. 보안 규칙은 우선 **테스트 모드**로 시작합니다 (아래 4단계에서 다시 다룹니다).
+
+## 3단계. 웹 앱 등록하고 설정 값(config) 복사하기
+
+1. Firebase 콘솔에서 프로젝트 개요 옆 톱니바퀴 → **프로젝트 설정**으로 이동합니다.
+2. 아래로 스크롤해 **내 앱** 섹션에서 웹 아이콘(`</>`)을 눌러 앱을 등록합니다. 앱 이름은 아무거나 괜찮습니다 (예: `tracker-web`).
+3. Firebase Hosting은 사용하지 않을 것이므로 체크하지 않아도 됩니다.
+4. 등록하면 아래와 같은 `firebaseConfig` 코드가 나타납니다. 이 값을 통째로 복사해두세요.
+
+```js
+const firebaseConfig = {
+  apiKey: "AIza...",
+  authDomain: "vape-shop-tracker.firebaseapp.com",
+  projectId: "vape-shop-tracker",
+  storageBucket: "vape-shop-tracker.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef"
+};
+```
+
+5. `index.html` 파일을 텍스트 에디터(메모장, VS Code 등)로 열고, 아래쪽에 있는 다음 부분을 찾습니다.
+
+```js
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+```
+
+이 부분을 방금 복사한 본인의 값으로 통째로 바꾸고 저장합니다.
+
+## 4단계. 보안 규칙 설정하기 (중요)
+
+Firestore를 테스트 모드로 만들면 보통 30일 후 모든 접근이 막힙니다. 계속 사용하려면 규칙을 아래처럼 설정하세요.
+
+1. Firestore Database → **규칙** 탭으로 이동합니다.
+2. 아래 내용으로 바꾸고 **게시**를 누릅니다.
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /slots/{slotId} {
+      allow read, write: if true;
+    }
+  }
+}
+```
+
+> 이 규칙은 링크를 아는 누구나 데이터를 읽고 쓸 수 있게 합니다. 직원용 내부 도구이고 민감한 정보가 없어 실용적인 설정이지만, 웹사이트 주소가 외부에 공개되지 않도록 주의하세요. 더 강한 보안이 필요하면 Firebase Authentication(로그인 기능)을 추가로 붙일 수 있습니다 — 필요하시면 말씀해주세요.
+
+---
+
+## 5단계. GitHub에 올려서 웹사이트로 배포하기 (GitHub Pages)
+
+1. [github.com](https://github.com)에서 로그인 후 **New repository**로 새 저장소를 만듭니다 (예: `vape-tracker`). Public으로 설정합니다.
+2. 저장소 페이지에서 **Add file → Upload files**를 눌러 `index.html` 파일을 끌어다 놓고 **Commit changes**를 누릅니다. (`README.md`도 함께 올려도 됩니다.)
+3. 저장소의 **Settings → Pages**로 이동합니다.
+4. **Branch**를 `main`(또는 `master`), 폴더는 `/root`로 선택하고 **Save**를 누릅니다.
+5. 1~2분 후 같은 화면에 `https://your-username.github.io/vape-tracker/` 형태의 주소가 나타납니다. 이 주소로 접속하면 사이트가 열립니다.
+
+### 갖고 계신 도메인(예: 카페24) 연결하기
+
+- **방법 A — GitHub Pages에 카페24 도메인 연결**: 카페24 도메인 관리에서 DNS의 CNAME(서브도메인 사용 시) 또는 A 레코드(루트 도메인 사용 시, GitHub Pages IP로 설정)를 추가하고, GitHub 저장소 Settings → Pages에서 **Custom domain**란에 그 도메인을 입력합니다. (구체적인 DNS 값은 GitHub Pages 공식 문서의 "Managing a custom domain" 페이지에 최신 IP/안내가 있습니다.)
+- **방법 B — 카페24 호스팅에 파일을 직접 업로드**: GitHub 없이도 됩니다. `index.html` 파일 하나만 카페24 웹호스팅의 FTP로 접속해 루트 폴더(보통 `www` 또는 `public_html`)에 올리면 바로 그 도메인에서 열립니다. Firebase 설정은 동일하게 적용됩니다.
+
+두 방법 모두 파일 자체(`index.html`)는 완전히 동일하게 사용할 수 있습니다 — 정적 파일이라 어디에 올려도 그대로 작동합니다.
+
+---
+
+## 사용법
+
+- **+ 슬롯 추가**: 시연대 자리 하나를 새로 등록합니다.
+- 액상 이름/향, 메모를 입력하면 자동 저장됩니다.
+- 액상을 교체한 날 **오늘로 설정**을 누르면 그날 날짜로 기록됩니다.
+- **교체 경고 기준(일)**을 슬롯마다 원하는 값으로 설정할 수 있습니다. 기준일이 다가오면 노란색 "곧 교체", 기준일이 지나면 빨간색 "교체 필요"로 표시됩니다.
+- 삭제는 실수 방지를 위해 ✕ 버튼을 두 번 눌러야 합니다.
+- 다른 직원이 다른 기기에서 값을 바꾸면 이 화면에도 실시간으로 반영됩니다.
+
+## 문제가 생기면
+
+- 화면에 "설정이 필요합니다"가 뜬다면 → `index.html`의 `firebaseConfig` 값이 아직 기본값(`YOUR_API_KEY` 등)인 상태입니다. 3단계를 다시 확인하세요.
+- "데이터를 불러오지 못했습니다" 배너가 뜬다면 → Firestore 보안 규칙(4단계)이 아직 게시되지 않았거나 값이 다를 수 있습니다.
+- 그 외 궁금한 점은 언제든 다시 요청해주세요.
