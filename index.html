@@ -214,6 +214,38 @@
   }
 
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  /* ---------- 품목 추가 모달 (이카운트 카탈로그 검색) ---------- */
+  #addModal {
+    position: fixed; inset: 0; background: rgba(36, 31, 24, 0.38); z-index: 90; display: none;
+    align-items: flex-start; justify-content: center; padding: 64px 20px;
+  }
+  #addModal.show { display: flex; }
+  .add-modal-box {
+    width: 100%; max-width: 440px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 22px 22px 14px; box-shadow: 0 20px 50px -12px rgba(36,31,24,0.35);
+  }
+  .add-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .add-modal-head h2 { font-family: "Noto Serif KR", serif; font-size: 18px; margin: 0; }
+  .add-modal-head button { padding: 6px 10px; font-size: 12px; }
+  #productSearchInput {
+    width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border-strong);
+    background: var(--surface-2); color: var(--text); font-size: 14px; font-family: inherit; margin-bottom: 4px;
+  }
+  .product-suggestions { max-height: 320px; overflow-y: auto; margin-top: 8px; }
+  .product-suggestion-item {
+    display: block; width: 100%; text-align: left; background: transparent; border: 1px solid transparent;
+    border-radius: 6px; padding: 10px 11px; font-size: 13.5px; font-weight: 500; color: var(--text);
+    margin-bottom: 3px;
+  }
+  .product-suggestion-item:hover { background: var(--surface-2); border-color: var(--border); }
+  .product-suggestion-item .hit-count { float: right; font-size: 11px; color: var(--text-faint); font-weight: 500; }
+  .product-suggestion-new {
+    background: var(--accent-tint); border: 1px dashed var(--accent);
+    color: var(--accent-strong); font-weight: 600;
+  }
+  .product-suggestion-new:hover { background: var(--accent-tint); }
+  .add-modal-hint { font-size: 12.5px; color: var(--text-faint); text-align: center; padding: 22px 10px; margin: 0; line-height: 1.7; }
 </style>
 </head>
 <body>
@@ -234,8 +266,7 @@
     </div>
     <div class="header-actions">
       <button class="btn-ghost btn-bell" id="bellBtn" type="button">🔔 알림 받기</button>
-      <button class="btn-ghost" id="sortBtn" type="button">교체 임박순 정렬</button>
-      <button class="btn-primary" id="addBtn" type="button">+ 슬롯 추가</button>
+      <button class="btn-primary" id="addBtn" type="button">+ 품목 추가</button>
     </div>
   </header>
 
@@ -247,7 +278,7 @@
     <span class="summary-chip"><span class="dot" style="background:var(--critical)"></span>교체 필요 <span class="n" id="cntCritical">0</span></span>
   </div>
 
-  <p class="threshold-note">교체 경고 기준은 <strong>30일</strong>로 고정되어 있습니다 (25일부터 "곧 교체"로 표시). 기준을 바꾸고 싶으시면 언제든 요청해주세요.</p>
+  <p class="threshold-note">교체 경고 기준은 <strong>30일</strong>로 고정되어 있습니다 (25일부터 "곧 교체"로 표시, 30일이 지나면 "교체 필요" 알림). 목록은 <strong>교체가 임박한 순서로 자동 정렬</strong>됩니다. 기준을 바꾸고 싶으시면 언제든 요청해주세요.</p>
 
   <div class="toolbar">
     <div class="search-box">
@@ -261,14 +292,25 @@
   <div id="grid" style="display:none;"></div>
 
   <div id="emptyState">
-    <p><strong style="color:var(--text)">등록된 시연 슬롯이 없습니다.</strong><br />시연대의 각 자리에 맞춰 슬롯을 추가하고, 액상을 교체할 때마다 '오늘로 설정'을 눌러 기록하세요.</p>
-    <button class="btn-primary" id="emptyAddBtn" type="button">+ 첫 슬롯 추가</button>
+    <p><strong style="color:var(--text)">등록된 시연 품목이 없습니다.</strong><br />'+ 품목 추가'를 눌러 품목을 검색해서 추가하면, 오늘 날짜로 자동 기록되어 화면에 나타납니다.</p>
+    <button class="btn-primary" id="emptyAddBtn" type="button">+ 첫 품목 추가</button>
   </div>
 
   <div id="noResults">검색 결과가 없습니다.</div>
 </div>
 
 <div id="toast"></div>
+
+<div id="addModal">
+  <div class="add-modal-box">
+    <div class="add-modal-head">
+      <h2>품목 추가</h2>
+      <button class="btn-ghost" id="addModalClose" type="button">닫기</button>
+    </div>
+    <input type="text" id="productSearchInput" placeholder="품목 이름을 검색하세요" autocomplete="off" />
+    <div id="productSuggestions" class="product-suggestions"></div>
+  </div>
+</div>
 
 <template id="cardTemplate">
   <div class="card" data-status="unset">
@@ -323,10 +365,11 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const slotsCol = collection(db, "slots");
-    initApp(db, slotsCol, { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy });
+    const productsCol = collection(db, "products");
+    initApp(db, slotsCol, productsCol, { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy });
   }
 
-  function initApp(db, slotsCol, fs) {
+  function initApp(db, slotsCol, productsCol, fs) {
     "use strict";
 
     // 교체 경고 기준: 30일. 25일째부터 "곧 교체"로 미리 알려줍니다.
@@ -348,6 +391,12 @@
     var slotElements = new Map(); // docId -> element refs
     var pendingWrites = new Map(); // debounce timers, keyed "id:field"
     var notifiedKeys = new Set(); // "id:status" already alerted this session
+
+    var productsList = []; // 이카운트에서 가져온 전체 품목 카탈로그 [{id, name}], 화면엔 노출하지 않고 검색에만 사용
+    var addModal = document.getElementById("addModal");
+    var addModalClose = document.getElementById("addModalClose");
+    var productSearchInput = document.getElementById("productSearchInput");
+    var productSuggestions = document.getElementById("productSuggestions");
 
     function todayISO() {
       var d = new Date();
@@ -495,6 +544,7 @@
       grid.style.display = total === 0 ? "none" : "grid";
       updateTabTitle(counts.warn, counts.critical);
       checkAlarms();
+      autoSort();
       applyFilter();
     }
 
@@ -620,30 +670,105 @@
       notifiedKeys.delete(id + ":critical");
     }
 
-    /* ---------- add / sort ---------- */
+    /* ---------- 품목 카탈로그(이카운트) 구독 — 화면엔 노출하지 않고 검색에만 사용 ---------- */
 
-    document.getElementById("addBtn").addEventListener("click", addSlot);
-    document.getElementById("emptyAddBtn").addEventListener("click", addSlot);
+    fs.onSnapshot(fs.query(productsCol, fs.orderBy("name")), function (snapshot) {
+      productsList = snapshot.docs.map(function (d) {
+        return { id: d.id, name: (d.data().name || "").trim() };
+      }).filter(function (p) { return p.name; });
+    }, function (err) {
+      console.error(err);
+    });
 
-    function addSlot() {
+    /* ---------- 품목 추가 (검색해서 추가 — 추가와 동시에 오늘 날짜로 기록) ---------- */
+
+    function openAddModal() {
+      addModal.classList.add("show");
+      productSearchInput.value = "";
+      renderSuggestions("");
+      requestAnimationFrame(function () { productSearchInput.focus(); });
+    }
+    function closeAddModal() {
+      addModal.classList.remove("show");
+    }
+    document.getElementById("addBtn").addEventListener("click", openAddModal);
+    document.getElementById("emptyAddBtn").addEventListener("click", openAddModal);
+    addModalClose.addEventListener("click", closeAddModal);
+    addModal.addEventListener("click", function (e) {
+      if (e.target === addModal) closeAddModal();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && addModal.classList.contains("show")) closeAddModal();
+    });
+
+    function renderSuggestions(q) {
+      productSuggestions.innerHTML = "";
+      var query = q.trim().toLowerCase();
+
+      if (!query) {
+        var hint = document.createElement("p");
+        hint.className = "add-modal-hint";
+        hint.textContent = "품목 이름을 검색하면 목록이 나타납니다.";
+        productSuggestions.appendChild(hint);
+        return;
+      }
+
+      var matches = productsList.filter(function (p) {
+        return p.name.toLowerCase().indexOf(query) !== -1;
+      }).slice(0, 40);
+
+      matches.forEach(function (p) {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "product-suggestion-item";
+        btn.textContent = p.name;
+        btn.addEventListener("click", function () { addSlotFromName(p.name); });
+        productSuggestions.appendChild(btn);
+      });
+
+      var exact = productsList.some(function (p) { return p.name.toLowerCase() === query; });
+      if (!exact) {
+        var newBtn = document.createElement("button");
+        newBtn.type = "button";
+        newBtn.className = "product-suggestion-item product-suggestion-new";
+        newBtn.textContent = "+ “" + q.trim() + "” 새 품목으로 추가";
+        newBtn.addEventListener("click", function () { addSlotFromName(q.trim(), true); });
+        productSuggestions.appendChild(newBtn);
+      } else if (matches.length === 0) {
+        var none = document.createElement("p");
+        none.className = "add-modal-hint";
+        none.textContent = "일치하는 품목이 없습니다.";
+        productSuggestions.appendChild(none);
+      }
+    }
+    productSearchInput.addEventListener("input", function () {
+      renderSuggestions(productSearchInput.value);
+    });
+
+    function addSlotFromName(name, isNew) {
+      name = (name || "").trim();
+      if (!name) return;
+      closeAddModal();
       fs.addDoc(slotsCol, {
-        name: "",
-        changedDate: null,
+        name: name,
+        changedDate: todayISO(),
         order: Date.now()
-      }).then(function (ref) {
-        requestAnimationFrame(function () {
-          requestAnimationFrame(function () {
-            var refs = slotElements.get(ref.id);
-            if (refs) refs.nameInput.focus();
-          });
-        });
       }).catch(function (err) {
         console.error(err);
         toast("추가 실패: 인터넷 연결이나 설정을 확인해주세요.");
       });
+      if (isNew) {
+        var already = productsList.some(function (p) { return p.name.toLowerCase() === name.toLowerCase(); });
+        if (!already) {
+          fs.addDoc(productsCol, { name: name }).catch(function (err) { console.error(err); });
+        }
+      }
+      toast(name + " 을(를) 오늘 날짜로 추가했습니다.");
     }
 
-    document.getElementById("sortBtn").addEventListener("click", function () {
+    /* ---------- 자동 정렬 (교체 임박순) ---------- */
+
+    function autoSort() {
       var cards = Array.from(slotElements.values());
       var rank = { critical: 0, warn: 1, ok: 2, unset: 3 };
       cards.sort(function (a, b) {
@@ -655,8 +780,7 @@
         return (db2 === null ? -1 : db2) - (da === null ? -1 : da);
       });
       cards.forEach(function (refs) { grid.appendChild(refs.card); });
-      toast("교체 임박순으로 정렬했습니다 (이 화면에서만 적용).");
-    });
+    }
 
     /* ---------- realtime subscription ---------- */
 
@@ -665,8 +789,11 @@
       loadingState.style.display = "none";
       var seen = new Set();
       snapshot.forEach(function (docSnap) {
+        var data = docSnap.data();
+        // 날짜가 설정된 품목만 화면에 표시합니다 (전체 카탈로그를 그대로 노출하지 않기 위함).
+        if (!data.changedDate) return;
         seen.add(docSnap.id);
-        upsertFromRemote(docSnap.id, docSnap.data());
+        upsertFromRemote(docSnap.id, data);
       });
       Array.from(slotElements.keys()).forEach(function (id) {
         if (!seen.has(id)) removeCard(id);
