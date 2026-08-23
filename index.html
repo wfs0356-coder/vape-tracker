@@ -1185,8 +1185,7 @@
       var seen = new Set();
       snapshot.forEach(function (docSnap) {
         var data = docSnap.data();
-        // 날짜가 설정된 품목만 화면에 표시합니다 (전체 카탈로그를 그대로 노출하지 않기 위함).
-        if (!data.changedDate) return;
+        // 등록된 슬롯은 날짜가 비어 있어도(=아직 교체일 미기록) 화면에 표시합니다("날짜 미설정" 배지).
         seen.add(docSnap.id);
         upsertFromRemote(docSnap.id, data);
       });
