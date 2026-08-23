@@ -4,127 +4,132 @@
 <meta charset="utf-8" />
 <title>액상 교체 트래커</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="description" content="시연대 액상별 마지막 교체일을 기록하고, 교체 시점이 다가오면 색으로 알려주는 매장용 관리 도구" />
+<meta name="description" content="시연대 액상별 마지막 교체일을 기록하고, 교체 시점이 다가오면 알려주는 매장용 관리 도구" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
 
 <style>
+  /*
+    의도적으로 다크(짙은 브라운/차콜 + 와인 레드) 단일 테마로 고정했습니다.
+    매장 카운터에 고정 배치되는 화면을 전제로, 부티크/라운지 느낌의
+    고급스러운 톤을 항상 동일하게 유지하기 위한 선택입니다.
+  */
   :root {
-    --bg: #f5f4f1;
-    --surface: #ffffff;
-    --surface-2: #ece9e3;
-    --surface-3: #e2ded5;
-    --text: #1b1f22;
-    --text-muted: #5c6367;
-    --text-faint: #8b9195;
-    --border: #dcd8d0;
-    --border-strong: #c7c2b8;
-    --accent: #0e7c86;
-    --accent-strong: #0a5c64;
-    --accent-tint: #dcefee;
-    --ok: #2f8f52;
-    --ok-tint: #e2f2e6;
-    --warn: #b57a12;
-    --warn-tint: #faf0d9;
-    --critical: #bf4530;
-    --critical-tint: #fbe6e0;
-    --neutral-tint: #eceae5;
-    --shadow: 0 1px 2px rgba(30, 26, 14, 0.04), 0 6px 20px -8px rgba(30, 26, 14, 0.12);
-    --radius: 10px;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #14181a; --surface: #1c2124; --surface-2: #23292c; --surface-3: #2b3235;
-      --text: #eceeec; --text-muted: #a3aaad; --text-faint: #767e81;
-      --border: #2c3336; --border-strong: #3a4245;
-      --accent: #45b8c0; --accent-strong: #6fcbd1; --accent-tint: #1c3538;
-      --ok: #4fb872; --ok-tint: #1c3324; --warn: #d9a53c; --warn-tint: #3a3018;
-      --critical: #e2705a; --critical-tint: #3c231e; --neutral-tint: #23292c;
-      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -8px rgba(0,0,0,0.5);
-    }
-  }
-  :root[data-theme="dark"] {
-    --bg: #14181a; --surface: #1c2124; --surface-2: #23292c; --surface-3: #2b3235;
-    --text: #eceeec; --text-muted: #a3aaad; --text-faint: #767e81;
-    --border: #2c3336; --border-strong: #3a4245;
-    --accent: #45b8c0; --accent-strong: #6fcbd1; --accent-tint: #1c3538;
-    --ok: #4fb872; --ok-tint: #1c3324; --warn: #d9a53c; --warn-tint: #3a3018;
-    --critical: #e2705a; --critical-tint: #3c231e; --neutral-tint: #23292c;
-    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -8px rgba(0,0,0,0.5);
+    --bg: #15120f;
+    --bg-vignette: radial-gradient(ellipse 1200px 700px at 50% -10%, #2a221a 0%, #15120f 60%);
+    --surface: #1e1a15;
+    --surface-2: #27221b;
+    --surface-3: #322b21;
+    --text: #f3ece0;
+    --text-muted: #b9ac97;
+    --text-faint: #8a7c68;
+    --border: #362e23;
+    --border-strong: #4b4030;
+    --accent: #a8354f;
+    --accent-strong: #c24763;
+    --accent-tint: #2c161c;
+    --gold: #c9a13b;
+    --ok: #6ea87e;
+    --ok-tint: #1b2921;
+    --warn: #d9a53c;
+    --warn-tint: #2e2415;
+    --critical: #cf6249;
+    --critical-tint: #33201a;
+    --neutral-tint: #27221b;
+    --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 12px 28px -10px rgba(0,0,0,0.55);
+    --radius: 8px;
   }
 
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
-    background: var(--bg); color: var(--text);
-    font-family: "IBM Plex Sans", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    background: var(--bg-vignette), var(--bg);
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: "Pretendard Variable", "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
     -webkit-font-smoothing: antialiased; min-height: 100vh; overflow-x: hidden;
   }
 
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 20px 80px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 40px 22px 90px; }
 
   header {
     display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
-    gap: 16px 24px; padding-bottom: 22px; border-bottom: 1px solid var(--border); margin-bottom: 22px;
+    gap: 18px 24px; padding-bottom: 26px; margin-bottom: 26px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  header::after {
+    content: ""; position: absolute; left: 0; bottom: -1px; width: 64px; height: 2px;
+    background: linear-gradient(90deg, var(--gold), transparent);
   }
   .brand-eyebrow {
-    font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: 0.14em;
-    text-transform: uppercase; color: var(--accent); margin: 0 0 6px; font-weight: 600;
+    font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--gold); margin: 0 0 10px; font-weight: 600;
   }
   h1 {
-    font-family: "Big Shoulders Display", sans-serif; font-weight: 800; font-size: 34px;
-    letter-spacing: 0.01em; margin: 0; line-height: 1; color: var(--text); text-wrap: balance;
+    font-family: "Noto Serif KR", serif; font-weight: 700; font-size: 33px;
+    letter-spacing: -0.01em; margin: 0; line-height: 1.15; color: var(--text); text-wrap: balance;
   }
-  .header-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .header-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
   button {
-    font-family: inherit; cursor: pointer; border-radius: 7px; border: 1px solid var(--border-strong);
-    background: var(--surface); color: var(--text); font-size: 13.5px; font-weight: 600;
-    padding: 9px 14px; transition: background 0.12s ease, border-color 0.12s ease, transform 0.05s ease;
+    font-family: inherit; cursor: pointer; border-radius: 6px; border: 1px solid var(--border-strong);
+    background: var(--surface-2); color: var(--text); font-size: 13px; font-weight: 600;
+    padding: 9px 14px; transition: background 0.15s ease, border-color 0.15s ease, transform 0.05s ease;
   }
-  button:hover { background: var(--surface-2); }
+  button:hover { background: var(--surface-3); border-color: var(--gold); }
   button:active { transform: translateY(1px); }
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
-  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  button:disabled:hover { background: var(--surface-2); border-color: var(--border-strong); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
-  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fbfdfd; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fbf1f0; }
   .btn-primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
   .btn-ghost { background: transparent; border-color: var(--border); color: var(--text-muted); }
   .btn-ghost:hover { background: var(--surface-2); color: var(--text); }
+  .btn-bell.on { background: var(--accent-tint); border-color: var(--accent); color: var(--accent-strong); }
 
-  .summary { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+  .summary { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 22px; }
   .summary-chip {
-    display: flex; align-items: baseline; gap: 7px; background: var(--surface);
-    border: 1px solid var(--border); border-radius: 999px; padding: 7px 14px 7px 12px;
+    display: flex; align-items: baseline; gap: 8px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 999px; padding: 8px 16px 8px 13px;
     font-size: 13px; color: var(--text-muted);
   }
-  .summary-chip .n { font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: 15px; color: var(--text); }
+  .summary-chip .n { font-weight: 700; font-size: 15px; color: var(--text); font-variant-numeric: tabular-nums; }
   .summary-chip .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 
-  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .threshold-note {
+    font-size: 12px; color: var(--text-faint); margin-bottom: 22px;
+    padding-bottom: 22px; border-bottom: 1px solid var(--border);
+  }
+  .threshold-note strong { color: var(--text-muted); font-weight: 600; }
+
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-bottom: 20px; }
   .search-box { position: relative; flex: 1; min-width: 180px; max-width: 320px; }
   .search-box input {
-    width: 100%; padding: 8px 12px 8px 32px; border-radius: 7px; border: 1px solid var(--border-strong);
-    background: var(--surface); color: var(--text); font-size: 13.5px;
+    width: 100%; padding: 9px 12px 9px 34px; border-radius: 6px; border: 1px solid var(--border-strong);
+    background: var(--surface); color: var(--text); font-size: 13.5px; font-family: inherit;
   }
-  .search-box svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-faint); pointer-events: none; }
+  .search-box svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-faint); pointer-events: none; }
 
   #statusBanner {
-    display: none; align-items: center; gap: 8px; border-radius: 8px; padding: 10px 14px;
-    font-size: 13px; font-weight: 600; margin-bottom: 16px; border: 1px solid transparent;
+    display: none; align-items: center; gap: 8px; border-radius: 7px; padding: 11px 15px;
+    font-size: 13px; font-weight: 600; margin-bottom: 18px; border: 1px solid transparent;
   }
   #statusBanner.show { display: flex; }
   #statusBanner.offline { background: var(--warn-tint); color: var(--warn); border-color: var(--warn); }
   #statusBanner.error { background: var(--critical-tint); color: var(--critical); border-color: var(--critical); }
+  #statusBanner.info { background: var(--surface-2); color: var(--text-muted); border-color: var(--border-strong); }
 
-  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
 
   .card {
-    background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--border-strong);
-    border-radius: var(--radius); padding: 16px 16px 14px; box-shadow: var(--shadow);
-    display: flex; flex-direction: column; gap: 10px; transition: border-left-color 0.2s ease;
+    background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--border-strong);
+    border-radius: var(--radius); padding: 18px 18px 16px; box-shadow: var(--shadow);
+    display: flex; flex-direction: column; gap: 12px; transition: border-color 0.2s ease;
   }
   .card[data-status="ok"] { border-left-color: var(--ok); }
   .card[data-status="warn"] { border-left-color: var(--warn); }
@@ -133,67 +138,62 @@
 
   .card-top { display: flex; gap: 8px; align-items: flex-start; }
   .field-name {
-    flex: 1; font-family: "IBM Plex Sans", sans-serif; font-weight: 600; font-size: 16px;
-    border: 1px solid transparent; border-radius: 6px; padding: 5px 7px; background: transparent;
-    color: var(--text); min-width: 0;
+    flex: 1; font-family: "Noto Serif KR", serif; font-weight: 700; font-size: 17px;
+    border: 1px solid transparent; border-radius: 5px; padding: 6px 8px; background: transparent;
+    color: var(--text); min-width: 0; letter-spacing: -0.01em;
   }
   .field-name:hover, .field-name:focus { background: var(--surface-2); border-color: var(--border); }
-  .field-name::placeholder { color: var(--text-faint); font-weight: 500; }
+  .field-name::placeholder { color: var(--text-faint); font-weight: 600; }
 
   .del-btn {
     flex: none; width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center;
-    border-radius: 6px; border: 1px solid transparent; background: transparent; color: var(--text-faint);
-    font-size: 15px; line-height: 1;
+    border-radius: 5px; border: 1px solid transparent; background: transparent; color: var(--text-faint);
+    font-size: 14px; line-height: 1;
   }
   .del-btn:hover { background: var(--critical-tint); color: var(--critical); border-color: var(--critical); }
   .del-btn.armed { background: var(--critical); color: #fff; border-color: var(--critical); font-size: 11px; width: auto; padding: 0 9px; font-weight: 700; }
 
-  .field-memo {
-    font-size: 13px; border: 1px solid transparent; border-radius: 6px; padding: 5px 7px;
-    background: transparent; color: var(--text-muted); min-width: 0;
-  }
-  .field-memo:hover, .field-memo:focus { background: var(--surface-2); border-color: var(--border); color: var(--text); }
-  .field-memo::placeholder { color: var(--text-faint); }
-
-  .card-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--text-muted); }
-  .card-row .label { flex: none; font-weight: 500; }
+  .card-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-muted); }
+  .card-row .label { flex: none; font-weight: 500; letter-spacing: 0.02em; }
   .card-row .field-group { display: flex; align-items: center; gap: 6px; }
 
-  input[type="date"], input[type="number"] {
-    font-family: "IBM Plex Mono", monospace; font-size: 12.5px; border: 1px solid var(--border);
-    border-radius: 6px; padding: 4px 6px; background: var(--surface-2); color: var(--text);
+  input[type="date"] {
+    font-family: inherit; font-size: 12.5px; border: 1px solid var(--border);
+    border-radius: 5px; padding: 5px 7px; background: var(--surface-2); color: var(--text);
+    font-variant-numeric: tabular-nums;
   }
-  input[type="date"] { width: 132px; }
-  input[type="number"] { width: 48px; text-align: right; }
-  .today-btn { padding: 4px 8px; font-size: 11.5px; border-radius: 6px; }
+  input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.75); }
+  input[type="date"] { width: 136px; }
+  .today-btn { padding: 5px 9px; font-size: 11.5px; border-radius: 5px; }
 
   .status-badge {
     display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px;
-    padding: 8px 10px; border-radius: 7px; background: var(--neutral-tint);
+    padding: 9px 11px; border-radius: 6px; background: var(--neutral-tint);
   }
-  .status-badge .elapsed { font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 600; color: var(--text); }
-  .status-badge .elapsed .unit { font-family: "IBM Plex Sans", sans-serif; font-weight: 500; font-size: 11px; color: var(--text-muted); margin-left: 3px; }
-  .status-pill { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; letter-spacing: 0.01em; }
+  .status-badge .elapsed { font-size: 13.5px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+  .status-badge .elapsed .unit { font-weight: 500; font-size: 11px; color: var(--text-muted); margin-left: 3px; }
+  .status-pill { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; letter-spacing: 0.01em; }
   .status-badge[data-status="ok"] { background: var(--ok-tint); }
-  .status-badge[data-status="ok"] .status-pill { background: var(--ok); color: #fff; }
+  .status-badge[data-status="ok"] .status-pill { background: var(--ok); color: #0e1a12; }
   .status-badge[data-status="warn"] { background: var(--warn-tint); }
-  .status-badge[data-status="warn"] .status-pill { background: var(--warn); color: #fff; }
+  .status-badge[data-status="warn"] .status-pill { background: var(--warn); color: #241b09; }
   .status-badge[data-status="critical"] { background: var(--critical-tint); }
-  .status-badge[data-status="critical"] .status-pill { background: var(--critical); color: #fff; }
+  .status-badge[data-status="critical"] .status-pill { background: var(--critical); color: #23100a; }
   .status-badge[data-status="unset"] .status-pill { background: var(--surface-3); color: var(--text-muted); }
 
   #emptyState {
-    display: none; flex-direction: column; align-items: center; gap: 10px; text-align: center;
-    padding: 60px 20px; border: 1px dashed var(--border-strong); border-radius: var(--radius); color: var(--text-muted);
+    display: none; flex-direction: column; align-items: center; gap: 12px; text-align: center;
+    padding: 64px 20px; border: 1px dashed var(--border-strong); border-radius: var(--radius); color: var(--text-muted);
   }
-  #emptyState p { margin: 0; font-size: 14px; max-width: 320px; }
+  #emptyState p { margin: 0; font-size: 14px; max-width: 320px; line-height: 1.6; }
   #noResults { display: none; padding: 40px 20px; text-align: center; color: var(--text-faint); font-size: 13.5px; }
-  #loadingState { padding: 60px 20px; text-align: center; color: var(--text-faint); font-size: 13.5px; }
+  #loadingState { padding: 64px 20px; text-align: center; color: var(--text-faint); font-size: 13.5px; }
 
   #toast {
-    position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%) translateY(12px);
-    background: var(--text); color: var(--bg); font-size: 13px; font-weight: 500; padding: 10px 16px;
-    border-radius: 8px; box-shadow: var(--shadow); opacity: 0; pointer-events: none;
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(12px);
+    background: var(--surface-3); color: var(--text); border: 1px solid var(--border-strong);
+    font-size: 13px; font-weight: 500; padding: 11px 18px;
+    border-radius: 7px; box-shadow: var(--shadow); opacity: 0; pointer-events: none;
     transition: opacity 0.18s ease, transform 0.18s ease; z-index: 50;
   }
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -205,13 +205,13 @@
   #setupOverlay.show { display: flex; }
   .setup-box {
     max-width: 520px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 28px 26px; box-shadow: var(--shadow);
+    padding: 30px 28px; box-shadow: var(--shadow);
   }
-  .setup-box h2 { font-family: "Big Shoulders Display", sans-serif; font-size: 24px; margin: 0 0 10px; }
-  .setup-box p { font-size: 13.5px; line-height: 1.6; color: var(--text-muted); margin: 0 0 10px; }
+  .setup-box h2 { font-family: "Noto Serif KR", serif; font-size: 22px; margin: 0 0 12px; }
+  .setup-box p { font-size: 13.5px; line-height: 1.7; color: var(--text-muted); margin: 0 0 10px; }
   .setup-box code {
     display: block; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
-    padding: 10px 12px; font-family: "IBM Plex Mono", monospace; font-size: 12px; margin: 10px 0; white-space: pre-wrap;
+    padding: 10px 12px; font-family: monospace; font-size: 12px; margin: 10px 0; white-space: pre-wrap;
   }
 
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -234,6 +234,7 @@
       <h1>액상 교체 트래커</h1>
     </div>
     <div class="header-actions">
+      <button class="btn-ghost btn-bell" id="bellBtn" type="button">🔔 알림 받기</button>
       <button class="btn-ghost" id="sortBtn" type="button">교체 임박순 정렬</button>
       <button class="btn-primary" id="addBtn" type="button">+ 슬롯 추가</button>
     </div>
@@ -247,12 +248,14 @@
     <span class="summary-chip"><span class="dot" style="background:var(--critical)"></span>교체 필요 <span class="n" id="cntCritical">0</span></span>
   </div>
 
+  <p class="threshold-note">교체 경고 기준은 <strong>30일</strong>로 고정되어 있습니다 (25일부터 "곧 교체"로 표시). 기준을 바꾸고 싶으시면 언제든 요청해주세요.</p>
+
   <div class="toolbar">
     <div class="search-box">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
       <input type="text" id="searchInput" placeholder="액상 이름으로 검색" autocomplete="off" />
     </div>
-    <span style="font-size:12px; color:var(--text-faint); font-family:'IBM Plex Mono',monospace;" id="slotCount">0개 슬롯</span>
+    <span style="font-size:12px; color:var(--text-faint);" id="slotCount">0개 슬롯</span>
   </div>
 
   <div id="loadingState">불러오는 중…</div>
@@ -271,22 +274,14 @@
 <template id="cardTemplate">
   <div class="card" data-status="unset">
     <div class="card-top">
-      <input type="text" class="field-name" placeholder="액상 이름 / 향" maxlength="60" />
+      <input type="text" class="field-name" placeholder="액상 이름" maxlength="60" />
       <button class="del-btn" type="button" title="슬롯 삭제">✕</button>
     </div>
-    <input type="text" class="field-memo" placeholder="메모 (브랜드, 농도 등)" maxlength="80" />
     <div class="card-row">
       <span class="label">마지막 교체일</span>
       <div class="field-group">
         <input type="date" class="field-date" />
         <button class="today-btn" type="button">오늘로 설정</button>
-      </div>
-    </div>
-    <div class="card-row">
-      <span class="label">교체 경고 기준</span>
-      <div class="field-group">
-        <input type="number" class="field-threshold" min="1" max="90" value="5" />
-        <span style="font-size:11.5px;">일</span>
       </div>
     </div>
     <div class="status-badge" data-status="unset">
@@ -335,6 +330,12 @@
   function initApp(db, slotsCol, fs) {
     "use strict";
 
+    // 교체 경고 기준: 30일. 25일째부터 "곧 교체"로 미리 알려줍니다.
+    var WARN_THRESHOLD_DAYS = 30;
+    var WARN_LEAD_DAYS = 5;
+
+    var ORIGINAL_TITLE = document.title;
+
     var grid = document.getElementById("grid");
     var emptyState = document.getElementById("emptyState");
     var noResults = document.getElementById("noResults");
@@ -343,9 +344,11 @@
     var toastEl = document.getElementById("toast");
     var slotCountEl = document.getElementById("slotCount");
     var statusBanner = document.getElementById("statusBanner");
+    var bellBtn = document.getElementById("bellBtn");
 
     var slotElements = new Map(); // docId -> element refs
     var pendingWrites = new Map(); // debounce timers, keyed "id:field"
+    var notifiedKeys = new Set(); // "id:status" already alerted this session
 
     function todayISO() {
       var d = new Date();
@@ -377,11 +380,85 @@
       statusBanner.textContent = "";
     }
 
+    /* ---------- browser 알림(벨) ---------- */
+
+    function refreshBellUI() {
+      if (!("Notification" in window)) {
+        bellBtn.textContent = "🔕 알림 미지원 브라우저";
+        bellBtn.disabled = true;
+        return;
+      }
+      if (Notification.permission === "granted") {
+        bellBtn.textContent = "🔔 알림 켜짐";
+        bellBtn.classList.add("on");
+      } else if (Notification.permission === "denied") {
+        bellBtn.textContent = "🔕 알림 차단됨 (브라우저 설정에서 허용 필요)";
+        bellBtn.classList.remove("on");
+      } else {
+        bellBtn.textContent = "🔔 알림 받기";
+        bellBtn.classList.remove("on");
+      }
+    }
+
+    bellBtn.addEventListener("click", function () {
+      if (!("Notification" in window)) return;
+      if (Notification.permission === "granted") {
+        toast("이미 알림이 켜져 있어요. 이 기기·이 브라우저에서 탭을 열어두면 알림이 울립니다.");
+        return;
+      }
+      if (Notification.permission === "denied") {
+        toast("브라우저에서 알림이 차단되어 있어요. 주소창 옆 자물쇠 아이콘에서 알림을 허용해주세요.");
+        return;
+      }
+      Notification.requestPermission().then(function () {
+        refreshBellUI();
+        if (Notification.permission === "granted") {
+          toast("알림이 켜졌습니다. 이 탭이 열려 있는 동안 교체 경고를 알려드려요.");
+          checkAlarms();
+        }
+      });
+    });
+
+    function notify(title, body) {
+      if (!("Notification" in window) || Notification.permission !== "granted") return;
+      try {
+        var n = new Notification(title, { body: body, icon: undefined });
+        n.onclick = function () { window.focus(); n.close(); };
+      } catch (e) { /* 일부 환경은 알림 생성이 제한될 수 있음 */ }
+    }
+
+    function checkAlarms() {
+      var alertable = { warn: true, critical: true };
+      slotElements.forEach(function (refs, id) {
+        var status = refs.card.getAttribute("data-status");
+        var key = id + ":" + status;
+        if (alertable[status] && !notifiedKeys.has(key)) {
+          // 같은 슬롯이 이전에 다른 상태로 알림 갔었는지와 무관하게, 새 상태 전이마다 1회 알림
+          notifiedKeys.add(id + ":warn");
+          if (status === "critical") notifiedKeys.add(id + ":critical");
+          var name = refs.nameInput.value.trim() || "이름 미입력 슬롯";
+          if (status === "critical") {
+            notify("⚠️ 액상 교체 필요", name + " — 교체 기준(30일)을 넘었습니다.");
+          } else {
+            notify("곧 교체 시기예요", name + " — 교체 기준이 얼마 남지 않았습니다.");
+          }
+        }
+        if (status === "ok" || status === "unset") {
+          notifiedKeys.delete(id + ":warn");
+          notifiedKeys.delete(id + ":critical");
+        }
+      });
+    }
+
+    function updateTabTitle(warnCount, criticalCount) {
+      var total = warnCount + criticalCount;
+      document.title = total > 0 ? "⚠️(" + total + ") " + ORIGINAL_TITLE : ORIGINAL_TITLE;
+    }
+
     /* ---------- status computation (local, from currently-shown field values) ---------- */
 
     function recomputeCard(refs) {
       var dateVal = refs.dateInput.value;
-      var threshold = parseInt(refs.thresholdInput.value, 10) || 5;
       var elapsedEl = refs.badge.querySelector(".elapsed");
       var pillEl = refs.badge.querySelector(".status-pill");
       var status;
@@ -392,8 +469,8 @@
         pillEl.textContent = "날짜 미설정";
       } else {
         var d = daysBetween(dateVal);
-        var warnAt = Math.max(0, threshold - 2);
-        if (d >= threshold) status = "critical";
+        var warnAt = WARN_THRESHOLD_DAYS - WARN_LEAD_DAYS;
+        if (d >= WARN_THRESHOLD_DAYS) status = "critical";
         else if (d >= warnAt) status = "warn";
         else status = "ok";
         elapsedEl.innerHTML = d === 0 ? "오늘 교체" : d + '<span class="unit">일 경과</span>';
@@ -417,6 +494,8 @@
       slotCountEl.textContent = total + "개 슬롯";
       emptyState.style.display = total === 0 ? "flex" : "none";
       grid.style.display = total === 0 ? "none" : "grid";
+      updateTabTitle(counts.warn, counts.critical);
+      checkAlarms();
       applyFilter();
     }
 
@@ -425,8 +504,7 @@
       var visible = 0;
       slotElements.forEach(function (refs) {
         var name = refs.nameInput.value.toLowerCase();
-        var memo = refs.memoInput.value.toLowerCase();
-        var match = !q || name.indexOf(q) !== -1 || memo.indexOf(q) !== -1;
+        var match = !q || name.indexOf(q) !== -1;
         refs.card.classList.toggle("hidden-by-search", !match);
         if (match) visible++;
       });
@@ -434,7 +512,7 @@
     }
     document.getElementById("searchInput").addEventListener("input", applyFilter);
 
-    /* ---------- writes (debounced for text/number, immediate for date/delete) ---------- */
+    /* ---------- writes (debounced for text, immediate for date/delete) ---------- */
 
     function writeField(id, field, value, opts) {
       opts = opts || {};
@@ -469,9 +547,7 @@
       var refs = {
         card: card,
         nameInput: card.querySelector(".field-name"),
-        memoInput: card.querySelector(".field-memo"),
         dateInput: card.querySelector(".field-date"),
-        thresholdInput: card.querySelector(".field-threshold"),
         todayBtn: card.querySelector(".today-btn"),
         delBtn: card.querySelector(".del-btn"),
         badge: card.querySelector(".status-badge")
@@ -481,19 +557,8 @@
         writeField(id, "name", refs.nameInput.value);
         applyFilter();
       });
-      refs.memoInput.addEventListener("input", function () {
-        writeField(id, "memo", refs.memoInput.value);
-        applyFilter();
-      });
       refs.dateInput.addEventListener("change", function () {
         writeField(id, "changedDate", refs.dateInput.value || null, { immediate: true });
-        recomputeCard(refs);
-        recomputeAll();
-      });
-      refs.thresholdInput.addEventListener("input", function () {
-        var v = parseInt(refs.thresholdInput.value, 10);
-        if (isNaN(v)) return;
-        writeField(id, "thresholdDays", v);
         recomputeCard(refs);
         recomputeAll();
       });
@@ -542,11 +607,7 @@
       if (!refs) refs = createCardElement(id);
 
       if (document.activeElement !== refs.nameInput) refs.nameInput.value = data.name || "";
-      if (document.activeElement !== refs.memoInput) refs.memoInput.value = data.memo || "";
       if (document.activeElement !== refs.dateInput) refs.dateInput.value = data.changedDate || "";
-      if (document.activeElement !== refs.thresholdInput) {
-        refs.thresholdInput.value = (data.thresholdDays || 5);
-      }
       recomputeCard(refs);
     }
 
@@ -556,6 +617,8 @@
         refs.card.remove();
         slotElements.delete(id);
       }
+      notifiedKeys.delete(id + ":warn");
+      notifiedKeys.delete(id + ":critical");
     }
 
     /* ---------- add / sort ---------- */
@@ -566,9 +629,7 @@
     function addSlot() {
       fs.addDoc(slotsCol, {
         name: "",
-        memo: "",
         changedDate: null,
-        thresholdDays: 5,
         order: Date.now()
       }).then(function (ref) {
         requestAnimationFrame(function () {
@@ -618,7 +679,7 @@
       showBanner("error", "데이터를 불러오지 못했습니다. Firebase 설정(firebaseConfig)과 Firestore 보안 규칙을 확인해주세요.");
     });
 
-    /* ---------- connectivity banner & periodic refresh (day rollover) ---------- */
+    /* ---------- connectivity banner & periodic refresh (day rollover, alarms) ---------- */
 
     function updateConnectivity() {
       if (!navigator.onLine) showBanner("offline", "오프라인 상태입니다 — 인터넷이 다시 연결되면 자동으로 동기화됩니다.");
@@ -627,6 +688,8 @@
     window.addEventListener("online", updateConnectivity);
     window.addEventListener("offline", updateConnectivity);
     updateConnectivity();
+
+    refreshBellUI();
 
     setInterval(recomputeAll, 20000);
     document.addEventListener("visibilitychange", function () {
