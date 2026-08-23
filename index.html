@@ -397,8 +397,9 @@
     var WARN_THRESHOLD_DAYS = 30;
     var WARN_LEAD_DAYS = 5;
 
-    // 브라우저 알림(팝업) 기능 — 요청으로 비활성화. 화면 안의 "정상/곧 교체/교체 필요" 배지·색상 표시는 그대로 동작합니다.
-    var NOTIFICATIONS_ENABLED = false;
+    // 브라우저 알림(팝업) 기능. 탭을 열 때 이미 있던 "곧 교체/교체 필요" 품목은 알리지 않고,
+    // 이후 실제로 새로 상태가 바뀌는 품목만 (여러 개면 하나로 모아서) 알립니다.
+    var NOTIFICATIONS_ENABLED = true;
 
     var ORIGINAL_TITLE = document.title;
 
@@ -557,8 +558,15 @@
       } catch (e) { /* 일부 환경은 알림 생성이 제한될 수 있음 */ }
     }
 
+    // 탭을 새로 열었을 때(=최초 데이터 로드, 일괄 등록 포함) 이미 "곧 교체/교체 필요" 상태인
+    // 품목들은 알림 없이 조용히 기록만 하고, 그 이후에 실제로 새로 전이되는 품목만 알림 대상으로 삼습니다.
+    var hasSeenInitialSnapshot = false;
+
     function checkAlarms() {
       var alertable = { warn: true, critical: true };
+      var newCritical = [];
+      var newWarn = [];
+
       slotElements.forEach(function (refs, id) {
         var status = refs.card.getAttribute("data-status");
         var key = id + ":" + status;
@@ -566,11 +574,10 @@
           // 같은 슬롯이 이전에 다른 상태로 알림 갔었는지와 무관하게, 새 상태 전이마다 1회 알림
           notifiedKeys.add(id + ":warn");
           if (status === "critical") notifiedKeys.add(id + ":critical");
-          var name = refs.nameInput.value.trim() || "이름 미입력 슬롯";
-          if (status === "critical") {
-            notify("⚠️ 액상 교체 필요", name + " — 교체 기준(30일)을 넘었습니다.");
-          } else {
-            notify("곧 교체 시기예요", name + " — 교체 기준이 얼마 남지 않았습니다.");
+          if (hasSeenInitialSnapshot) {
+            var name = refs.nameInput.value.trim() || "이름 미입력 슬롯";
+            if (status === "critical") newCritical.push(name);
+            else newWarn.push(name);
           }
         }
         if (status === "ok" || status === "unset") {
@@ -578,6 +585,24 @@
           notifiedKeys.delete(id + ":critical");
         }
       });
+
+      hasSeenInitialSnapshot = true;
+
+      // 여러 품목이 한 번에 전이되면 개별 알림 대신 하나로 모아서 알립니다.
+      if (newCritical.length) {
+        notify("⚠️ 액상 교체 필요", summarizeNames(newCritical) + " — 교체 기준(30일)을 넘었습니다.");
+      }
+      if (newWarn.length) {
+        notify("곧 교체 시기예요", summarizeNames(newWarn) + " — 교체 기준이 얼마 남지 않았습니다.");
+      }
+    }
+
+    function summarizeNames(names) {
+      if (names.length === 1) return names[0];
+      var maxShown = 5;
+      var shown = names.slice(0, maxShown).join(", ");
+      var rest = names.length - maxShown;
+      return names.length + "개 품목(" + shown + (rest > 0 ? " 외 " + rest + "개" : "") + ")";
     }
 
     function updateTabTitle(warnCount, criticalCount) {
