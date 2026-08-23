@@ -397,6 +397,9 @@
     var WARN_THRESHOLD_DAYS = 30;
     var WARN_LEAD_DAYS = 5;
 
+    // 브라우저 알림(팝업) 기능 — 요청으로 비활성화. 화면 안의 "정상/곧 교체/교체 필요" 배지·색상 표시는 그대로 동작합니다.
+    var NOTIFICATIONS_ENABLED = false;
+
     var ORIGINAL_TITLE = document.title;
 
     var grid = document.getElementById("grid");
@@ -500,6 +503,11 @@
     /* ---------- browser 알림(벨) ---------- */
 
     function refreshBellUI() {
+      if (!NOTIFICATIONS_ENABLED) {
+        bellBtn.textContent = "🔕 알림 기능 꺼짐";
+        bellBtn.classList.remove("on");
+        return;
+      }
       if (!("Notification" in window)) {
         bellBtn.textContent = "🔕 알림 미지원 브라우저";
         bellBtn.disabled = true;
@@ -518,6 +526,10 @@
     }
 
     bellBtn.addEventListener("click", function () {
+      if (!NOTIFICATIONS_ENABLED) {
+        toast("알림 기능이 꺼져 있습니다. 화면의 색상·배지로 교체 시기를 확인해주세요.");
+        return;
+      }
       if (!("Notification" in window)) return;
       if (Notification.permission === "granted") {
         toast("이미 알림이 켜져 있어요. 이 기기·이 브라우저에서 탭을 열어두면 알림이 울립니다.");
@@ -537,6 +549,7 @@
     });
 
     function notify(title, body) {
+      if (!NOTIFICATIONS_ENABLED) return;
       if (!("Notification" in window) || Notification.permission !== "granted") return;
       try {
         var n = new Notification(title, { body: body, icon: undefined });
