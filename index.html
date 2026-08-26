@@ -245,6 +245,27 @@
     padding: 10px 12px; font-family: monospace; font-size: 12px; margin: 10px 0; white-space: pre-wrap;
   }
 
+  /* ---------- 접속 코드 화면 ---------- */
+  #accessOverlay {
+    position: fixed; inset: 0; background: var(--bg); z-index: 101; display: none;
+    align-items: center; justify-content: center; padding: 24px;
+  }
+  #accessOverlay.show { display: flex; }
+  .access-box {
+    max-width: 400px; width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 34px 30px; box-shadow: var(--shadow); text-align: center;
+  }
+  .access-box h2 { font-family: "Noto Serif KR", serif; font-size: 21px; margin: 0 0 8px; }
+  .access-box p { font-size: 13px; color: var(--text-muted); margin: 0 0 22px; line-height: 1.6; }
+  #accessCodeInput {
+    width: 100%; box-sizing: border-box; text-align: center; letter-spacing: 0.3em; font-size: 20px;
+    font-weight: 700; padding: 12px 10px; border-radius: 8px; border: 1px solid var(--border-strong);
+    background: var(--surface-2); color: var(--text); font-family: inherit;
+  }
+  #accessCodeInput:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .access-box .btn-primary { width: 100%; margin-top: 12px; padding: 11px; font-size: 14px; }
+  .access-error { color: var(--critical); font-size: 12.5px; margin: 10px 0 0; min-height: 16px; }
+
   /* ---------- 매장 선택 화면 ---------- */
   #storeOverlay {
     position: fixed; inset: 0; background: var(--bg); z-index: 99; display: none;
@@ -319,6 +340,18 @@
     <h2>설정이 필요합니다</h2>
     <p>이 사이트는 Firebase(무료 데이터베이스)와 연결되어야 여러 기기에서 데이터를 함께 볼 수 있습니다. 아직 연결 정보(firebaseConfig)가 입력되지 않았습니다.</p>
     <p><code>index.html</code> 파일 안에서 <strong>firebaseConfig</strong> 부분을 본인의 Firebase 프로젝트 값으로 바꿔주세요. 자세한 방법은 함께 받으신 README.md 파일을 참고하세요.</p>
+  </div>
+</div>
+
+<div id="accessOverlay">
+  <div class="access-box">
+    <h2>접속 코드 입력</h2>
+    <p>내부 직원 전용 화면입니다. 매장에서 안내받은 접속 코드를 입력해주세요.</p>
+    <form id="accessForm" autocomplete="off">
+      <input type="password" inputmode="numeric" id="accessCodeInput" placeholder="••••••" maxlength="12" autocomplete="off" />
+      <button type="submit" class="btn-primary">확인</button>
+      <p class="access-error" id="accessError"></p>
+    </form>
   </div>
 </div>
 
@@ -462,9 +495,39 @@
     history.replaceState(null, "", url);
   }
 
+  // 접속 코드: 링크만 알면 누구나 슬롯을 수정/삭제할 수 있는 것을 막기 위한 최소한의 문단속입니다.
+  // (Firestore 자체를 코드로 잠그는 건 아니라서 완벽한 보안은 아니지만, 링크를 우연히 접하거나
+  // 지나가다 열어본 사람이 화면에 들어오는 것 자체를 막아줍니다.)
+  var ACCESS_CODE = "706194";
+  var ACCESS_STORAGE_KEY = "vapeTrackerAccessUnlocked";
+  function isUnlocked() {
+    try { return localStorage.getItem(ACCESS_STORAGE_KEY) === "1"; } catch (e) { return false; }
+  }
+  function setUnlocked() {
+    try { localStorage.setItem(ACCESS_STORAGE_KEY, "1"); } catch (e) { /* 무시 */ }
+  }
+
   if (!isConfigured) {
     document.getElementById("setupOverlay").classList.add("show");
     document.getElementById("loadingState").style.display = "none";
+  } else if (!isUnlocked()) {
+    document.getElementById("loadingState").style.display = "none";
+    var accessOverlay = document.getElementById("accessOverlay");
+    var accessInput = document.getElementById("accessCodeInput");
+    var accessError = document.getElementById("accessError");
+    accessOverlay.classList.add("show");
+    document.getElementById("accessForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      if (accessInput.value.trim() === ACCESS_CODE) {
+        setUnlocked();
+        location.reload();
+      } else {
+        accessError.textContent = "코드가 올바르지 않습니다. 다시 확인해주세요.";
+        accessInput.value = "";
+        accessInput.focus();
+      }
+    });
+    setTimeout(function () { accessInput.focus(); }, 50);
   } else {
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
