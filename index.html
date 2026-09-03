@@ -185,17 +185,26 @@
   .del-btn:hover { background: var(--critical-tint); color: var(--critical); border-color: var(--critical); }
   .del-btn.armed { background: var(--critical); color: #fff; border-color: var(--critical); font-size: 11px; width: auto; padding: 0 9px; font-weight: 700; }
 
-  .card-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-muted); }
+  .card-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; row-gap: 6px; gap: 8px; font-size: 12px; color: var(--text-muted); }
   .card-row .label { flex: none; font-weight: 500; letter-spacing: 0.02em; }
-  .card-row .field-group { display: flex; align-items: center; gap: 6px; }
+  .card-row .field-group { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; justify-content: flex-end; }
 
   input[type="date"] {
     font-family: inherit; font-size: 12.5px; border: 1px solid var(--border);
     border-radius: 5px; padding: 5px 7px; background: var(--surface-2); color: var(--text);
     font-variant-numeric: tabular-nums;
   }
-  input[type="date"] { width: 136px; }
-  .today-btn { padding: 5px 9px; font-size: 11.5px; border-radius: 5px; }
+  input[type="date"] { width: 136px; min-width: 96px; flex: 1 1 96px; }
+  .today-btn { padding: 5px 9px; font-size: 11.5px; border-radius: 5px; flex: none; white-space: nowrap; }
+
+  .cycle-row { color: var(--text-faint); }
+  .cycle-field-group { flex: none; justify-content: flex-end; }
+  .field-cycle {
+    font-family: inherit; font-size: 12.5px; border: 1px solid var(--border); border-radius: 5px;
+    padding: 5px 7px; background: var(--surface-2); color: var(--text); width: 52px; text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .cycle-unit { font-size: 12px; color: var(--text-faint); }
 
   .status-badge {
     display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px;
@@ -387,7 +396,7 @@
     <button type="button" class="summary-chip" id="chipCritical" data-status="critical" title="교체 필요 품목만 보기"><span class="dot" style="background:var(--critical)"></span>교체 필요 <span class="n" id="cntCritical">0</span></button>
   </div>
 
-  <p class="threshold-note">교체 경고 기준은 <strong>30일</strong>로 고정되어 있습니다 (25일부터 "곧 교체"로 표시, 30일이 지나면 "교체 필요" 알림). 목록은 <strong>교체가 임박한 순서로 자동 정렬</strong>됩니다. 기준을 바꾸고 싶으시면 언제든 요청해주세요.</p>
+  <p class="threshold-note">교체 주기는 기본 <strong>30일</strong>이며, 필요한 품목은 각 카드의 "교체 주기"에서 직접 다르게 설정할 수 있습니다. 주기의 5일 전부터 "곧 교체"로 미리 알려드립니다. 목록은 <strong>교체가 임박한 순서로 자동 정렬</strong>됩니다.</p>
 
   <div class="toolbar">
     <div class="search-box">
@@ -436,6 +445,13 @@
       <div class="field-group">
         <input type="date" class="field-date" />
         <button class="today-btn" type="button">오늘로 설정</button>
+      </div>
+    </div>
+    <div class="card-row cycle-row">
+      <span class="label">교체 주기</span>
+      <div class="field-group cycle-field-group">
+        <input type="number" class="field-cycle" min="1" max="90" title="이 향료의 권장 교체 주기(일)" />
+        <span class="cycle-unit">일</span>
       </div>
     </div>
     <div class="status-badge" data-status="unset">
@@ -592,8 +608,10 @@
   function initApp(db, slotsCol, productsCol, fs, storeId) {
     "use strict";
 
-    // 교체 경고 기준: 30일. 25일째부터 "곧 교체"로 미리 알려줍니다.
-    var WARN_THRESHOLD_DAYS = 30;
+    // 교체 주기는 기본 30일이며, 필요한 품목은 카드의 "교체 주기" 입력칸에서
+    // 담당자가 직접 원하는 값으로 바꿀 수 있습니다.
+    // "곧 교체"는 각 품목 주기의 (주기 - WARN_LEAD_DAYS)일째부터 미리 알려줍니다.
+    var DEFAULT_CYCLE_DAYS = 30;
     var WARN_LEAD_DAYS = 5;
 
     // 브라우저 알림(팝업) 기능. 탭을 열 때 이미 있던 "곧 교체/교체 필요" 품목은 알리지 않고,
@@ -837,7 +855,7 @@
 
       // 여러 품목이 한 번에 전이되면 개별 알림 대신 하나로 모아서 알립니다.
       if (newCritical.length) {
-        notify("⚠️ 액상 교체 필요", summarizeNames(newCritical) + " — 교체 기준(30일)을 넘었습니다.");
+        notify("⚠️ 액상 교체 필요", summarizeNames(newCritical) + " — 품목별 교체 주기를 넘었습니다.");
       }
       if (newWarn.length) {
         notify("곧 교체 시기예요", summarizeNames(newWarn) + " — 교체 기준이 얼마 남지 않았습니다.");
@@ -859,6 +877,12 @@
 
     /* ---------- status computation (local, from currently-shown field values) ---------- */
 
+    function getCycleDays(refs) {
+      var v = parseInt(refs.cycleInput.value, 10);
+      if (!v || v < 1) v = DEFAULT_CYCLE_DAYS;
+      return v;
+    }
+
     function recomputeCard(refs) {
       var dateVal = refs.dateInput.value;
       var elapsedEl = refs.badge.querySelector(".elapsed");
@@ -871,8 +895,9 @@
         pillEl.textContent = "날짜 미설정";
       } else {
         var d = daysBetween(dateVal);
-        var warnAt = WARN_THRESHOLD_DAYS - WARN_LEAD_DAYS;
-        if (d >= WARN_THRESHOLD_DAYS) status = "critical";
+        var cycleDays = getCycleDays(refs);
+        var warnAt = Math.max(1, cycleDays - WARN_LEAD_DAYS);
+        if (d >= cycleDays) status = "critical";
         else if (d >= warnAt) status = "warn";
         else status = "ok";
         elapsedEl.innerHTML = d === 0 ? "오늘 교체" : d + '<span class="unit">일 경과</span>';
@@ -1035,6 +1060,7 @@
         flavorEl: card.querySelector(".field-flavor"),
         dateInput: card.querySelector(".field-date"),
         todayBtn: card.querySelector(".today-btn"),
+        cycleInput: card.querySelector(".field-cycle"),
         delBtn: card.querySelector(".del-btn"),
         badge: card.querySelector(".status-badge")
       };
@@ -1072,6 +1098,15 @@
         recomputeCard(refs);
         recomputeAll();
         toast("오늘 날짜로 기록했습니다.");
+      });
+      refs.cycleInput.addEventListener("change", function () {
+        var v = parseInt(refs.cycleInput.value, 10);
+        if (!v || v < 1) v = DEFAULT_CYCLE_DAYS;
+        refs.cycleInput.value = v;
+        writeField(id, "cycleDays", v, { immediate: true });
+        recomputeCard(refs);
+        recomputeAll();
+        toast("교체 주기를 " + v + "일로 저장했습니다.");
       });
       refs.delBtn.addEventListener("click", function (e) {
         e.stopPropagation();
@@ -1115,6 +1150,7 @@
         renderNameDisplay(refs);
       }
       if (document.activeElement !== refs.dateInput) refs.dateInput.value = data.changedDate || "";
+      if (document.activeElement !== refs.cycleInput) refs.cycleInput.value = data.cycleDays || DEFAULT_CYCLE_DAYS;
       recomputeCard(refs);
     }
 
@@ -1207,9 +1243,15 @@
       name = (name || "").trim();
       if (!name) return;
       closeAddModal();
+
+      // 새 품목은 기본 교체 주기(30일)로 추가됩니다. 이 품목만 다른 주기가 필요하면
+      // 추가된 카드의 "교체 주기" 입력칸에서 직접 값을 바꿀 수 있습니다.
+      var cycleDays = DEFAULT_CYCLE_DAYS;
+
       fs.addDoc(slotsCol, {
         name: name,
         changedDate: todayISO(),
+        cycleDays: cycleDays,
         order: Date.now()
       }).catch(function (err) {
         console.error(err);
@@ -1221,7 +1263,7 @@
           fs.addDoc(productsCol, { name: name }).catch(function (err) { console.error(err); });
         }
       }
-      toast(name + " 을(를) 오늘 날짜로 추가했습니다.");
+      toast(name + " 을(를) 오늘 날짜로 추가했습니다 (교체 주기 " + cycleDays + "일).");
     }
 
     /* ---------- 자동 정렬 (교체 임박순) ---------- */
