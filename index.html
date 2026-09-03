@@ -113,6 +113,7 @@
   .summary-chip .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
   .summary-chip.active { border-width: 2px; padding: 7px 15px 7px 12px; color: var(--text); }
   .summary-chip.active[data-status="ok"] { border-color: var(--ok); background: var(--ok-tint); }
+  .summary-chip.active[data-status="unset"] { border-color: var(--text-muted); background: var(--surface-3); }
   .summary-chip.active[data-status="critical"] { border-color: var(--critical); background: var(--critical-tint); }
 
   .threshold-note {
@@ -388,6 +389,7 @@
 
   <div class="summary" id="summary">
     <button type="button" class="summary-chip" id="chipOk" data-status="ok" title="정상 품목만 보기"><span class="dot" style="background:var(--ok)"></span>정상 <span class="n" id="cntOk">0</span></button>
+    <button type="button" class="summary-chip" id="chipUnset" data-status="unset" title="롤리팟/롤리팟2%/비즈 플러스 중 교체일 미설정 품목만 보기"><span class="dot" style="background:var(--text-muted)"></span>미등록 <span class="n" id="cntUnset">0</span></button>
     <button type="button" class="summary-chip" id="chipCritical" data-status="critical" title="교체 필요 품목만 보기"><span class="dot" style="background:var(--critical)"></span>교체 필요 <span class="n" id="cntCritical">0</span></button>
   </div>
 
@@ -689,9 +691,12 @@
 
     var chipEls = {
       ok: document.getElementById("chipOk"),
+      unregistered: document.getElementById("chipUnset"),
       critical: document.getElementById("chipCritical")
     };
-    var statusFilter = null; // null | "ok" | "critical" — 요약 칩을 눌러 해당 상태만 보기
+    var statusFilter = null; // null | "ok" | "unregistered" | "critical" — 요약 칩을 눌러 해당 상태만 보기
+    // "unregistered"는 카드 자체의 data-status(="unset")와 다른 필터 전용 값입니다.
+    // 대상 브랜드(UNREGISTERED_TARGET_BRANDS)의 날짜 미설정 품목만 여기 해당됩니다.
 
     var slotElements = new Map(); // docId -> element refs
     var pendingWrites = new Map(); // debounce timers, keyed "id:field"
@@ -749,6 +754,14 @@
         return { brand: restTokens[0], flavor: restTokens.slice(1).join(" ") };
       }
       return { brand: "", flavor: afterIndex };
+    }
+
+    // "미등록" 요약 칩 대상 브랜드. 현재는 자사 취급 브랜드인 이 3개만 대상이며,
+    // 나중에 다른 브랜드가 추가되면 이 목록에 브랜드명을 더 넣어주면 됩니다.
+    var UNREGISTERED_TARGET_BRANDS = ["롤리팟", "롤리팟2%", "비즈 플러스"];
+    function isUnregisteredTargetBrand(rawName) {
+      var brand = splitBrandFlavor(rawName).brand;
+      return UNREGISTERED_TARGET_BRANDS.indexOf(brand) !== -1;
     }
 
     function renderNameDisplay(refs, rawName) {
@@ -963,12 +976,15 @@
 
     function recomputeAll() {
       var counts = { ok: 0, critical: 0 };
+      var unregisteredCount = 0;
       var total = slotElements.size;
       slotElements.forEach(function (refs) {
         var s = recomputeCard(refs);
         if (counts[s] !== undefined) counts[s]++;
+        if (s === "unset" && isUnregisteredTargetBrand(refs.nameInput.value)) unregisteredCount++;
       });
       document.getElementById("cntOk").textContent = counts.ok;
+      document.getElementById("cntUnset").textContent = unregisteredCount;
       document.getElementById("cntCritical").textContent = counts.critical;
       slotCountEl.textContent = total + "개 슬롯";
       emptyState.style.display = total === 0 ? "flex" : "none";
@@ -984,10 +1000,18 @@
       var q = qRaw.toLowerCase();
       var visible = 0;
       slotElements.forEach(function (refs) {
-        var name = refs.nameInput.value.toLowerCase();
+        var rawName = refs.nameInput.value;
+        var name = rawName.toLowerCase();
         var matchesSearch = !q || name.indexOf(q) !== -1;
         var status = refs.card.getAttribute("data-status");
-        var matchesStatus = !statusFilter || status === statusFilter;
+        var matchesStatus;
+        if (!statusFilter) {
+          matchesStatus = true;
+        } else if (statusFilter === "unregistered") {
+          matchesStatus = status === "unset" && isUnregisteredTargetBrand(rawName);
+        } else {
+          matchesStatus = status === statusFilter;
+        }
         var match = matchesSearch && matchesStatus;
         refs.card.classList.toggle("hidden-by-search", !match);
         if (match) visible++;
@@ -1008,7 +1032,7 @@
     }
     document.getElementById("searchInput").addEventListener("input", applyFilter);
 
-    // 요약 칩(정상/교체 필요) 클릭 시 해당 상태만 보여줍니다. 같은 칩을 다시 누르면 전체 보기로 돌아갑니다.
+    // 요약 칩(정상/미등록/교체 필요) 클릭 시 해당 상태만 보여줍니다. 같은 칩을 다시 누르면 전체 보기로 돌아갑니다.
     function setStatusFilter(status) {
       statusFilter = statusFilter === status ? null : status;
       Object.keys(chipEls).forEach(function (key) {
@@ -1017,6 +1041,7 @@
       applyFilter();
     }
     chipEls.ok.addEventListener("click", function () { setStatusFilter("ok"); });
+    chipEls.unregistered.addEventListener("click", function () { setStatusFilter("unregistered"); });
     chipEls.critical.addEventListener("click", function () { setStatusFilter("critical"); });
 
     // 상단 검색창에 입력했는데 지금 목록엔 없는 경우 — 카탈로그에서 찾아 바로 추가할 수 있게 도와줍니다.
