@@ -389,7 +389,7 @@
 
   <div class="summary" id="summary">
     <button type="button" class="summary-chip" id="chipOk" data-status="ok" title="정상 품목만 보기"><span class="dot" style="background:var(--ok)"></span>정상 <span class="n" id="cntOk">0</span></button>
-    <button type="button" class="summary-chip" id="chipUnset" data-status="unset" title="롤리팟/롤리팟2%/비즈 플러스 중 교체일 미설정 품목만 보기"><span class="dot" style="background:var(--text-muted)"></span>미등록 <span class="n" id="cntUnset">0</span></button>
+    <button type="button" class="summary-chip" id="chipUnset" data-status="unset" title="롤리팟/롤리팟A/롤리팟D/롤리팟2%/비즈 플러스 중 교체일 미설정 품목만 보기"><span class="dot" style="background:var(--text-muted)"></span>미등록 <span class="n" id="cntUnset">0</span></button>
     <button type="button" class="summary-chip" id="chipCritical" data-status="critical" title="교체 필요 품목만 보기"><span class="dot" style="background:var(--critical)"></span>교체 필요 <span class="n" id="cntCritical">0</span></button>
   </div>
 
@@ -758,7 +758,7 @@
 
     // "미등록" 요약 칩 대상 브랜드. 현재는 자사 취급 브랜드인 이 3개만 대상이며,
     // 나중에 다른 브랜드가 추가되면 이 목록에 브랜드명을 더 넣어주면 됩니다.
-    var UNREGISTERED_TARGET_BRANDS = ["롤리팟", "롤리팟2%", "비즈 플러스"];
+    var UNREGISTERED_TARGET_BRANDS = ["롤리팟", "롤리팟2%", "롤리팟A", "롤리팟D", "비즈 플러스"];
     function isUnregisteredTargetBrand(rawName) {
       var brand = splitBrandFlavor(rawName).brand;
       return UNREGISTERED_TARGET_BRANDS.indexOf(brand) !== -1;
