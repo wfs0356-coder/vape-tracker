@@ -933,9 +933,9 @@
       return names.length + "개 품목(" + shown + (rest > 0 ? " 외 " + rest + "개" : "") + ")";
     }
 
-    function updateTabTitle(warnCount, criticalCount) {
-      var total = warnCount + criticalCount;
-      document.title = total > 0 ? "⚠️(" + total + ") " + ORIGINAL_TITLE : ORIGINAL_TITLE;
+    function updateTabTitle(criticalCount) {
+      // 탭 제목의 ⚠️ 표시도 "교체 필요"만 반영합니다 ("곧 교체"는 알림이 아니라 배지로만 표시).
+      document.title = criticalCount > 0 ? "⚠️(" + criticalCount + ") " + ORIGINAL_TITLE : ORIGINAL_TITLE;
     }
 
     /* ---------- status computation (local, from currently-shown field values) ---------- */
@@ -984,7 +984,7 @@
       slotCountEl.textContent = total + "개 슬롯";
       emptyState.style.display = total === 0 ? "flex" : "none";
       grid.style.display = total === 0 ? "none" : "grid";
-      updateTabTitle(counts.warn, counts.critical);
+      updateTabTitle(counts.critical);
       checkAlarms();
       autoSort();
       applyFilter();
