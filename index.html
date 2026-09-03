@@ -871,15 +871,16 @@
       } catch (e) { /* 일부 환경은 알림 생성이 제한될 수 있음 */ }
     }
 
-    // 탭을 새로 열었을 때(=최초 데이터 로드, 일괄 등록 포함) 이미 "곧 교체/교체 필요" 상태인
+    // 탭을 새로 열었을 때(=최초 데이터 로드, 일괄 등록 포함) 이미 "교체 필요" 상태인
     // 품목들은 알림 없이 조용히 기록만 하고, 그 이후에 실제로 새로 전이되는 품목만 알림 대상으로 삼습니다.
+    // "곧 교체"는 화면 배지로만 표시되고 브라우저 알림은 울리지 않습니다 (사용자 요청).
     var hasSeenInitialSnapshot = false;
 
     // 같은 시점에 여러 품목이 연달아 전이될 때(예: 자정 넘어 여러 품목이 동시에 기준을 넘는 경우,
     // 또는 짧은 시간 안에 여러 건이 저장되는 경우) 알림이 품목마다 따로 뜨지 않도록,
     // 몇 초간 모았다가 한 번에 하나의 알림으로 묶어서 보냅니다.
     var NOTIFY_BATCH_WINDOW_MS = 4000;
-    var pendingNotify = { critical: [], warn: [] };
+    var pendingNotify = { critical: [] };
     var notifyFlushTimer = null;
 
     function scheduleNotifyFlush() {
@@ -892,33 +893,24 @@
       if (pendingNotify.critical.length) {
         notify("⚠️ 액상 교체 필요", summarizeNames(pendingNotify.critical) + " — 품목별 교체 주기를 넘었습니다.");
       }
-      if (pendingNotify.warn.length) {
-        notify("곧 교체 시기예요", summarizeNames(pendingNotify.warn) + " — 교체 기준이 얼마 남지 않았습니다.");
-      }
-      pendingNotify = { critical: [], warn: [] };
+      pendingNotify = { critical: [] };
     }
 
     function checkAlarms() {
-      var alertable = { warn: true, critical: true };
       var newCritical = [];
-      var newWarn = [];
 
       slotElements.forEach(function (refs, id) {
         var status = refs.card.getAttribute("data-status");
-        var key = id + ":" + status;
-        if (alertable[status] && !notifiedKeys.has(key)) {
-          // 같은 슬롯이 이전에 다른 상태로 알림 갔었는지와 무관하게, 새 상태 전이마다 1회 알림
-          notifiedKeys.add(id + ":warn");
-          if (status === "critical") notifiedKeys.add(id + ":critical");
+        var key = id + ":critical";
+        if (status === "critical" && !notifiedKeys.has(key)) {
+          notifiedKeys.add(key);
           if (hasSeenInitialSnapshot) {
             var name = refs.nameInput.value.trim() || "이름 미입력 슬롯";
-            if (status === "critical") newCritical.push(name);
-            else newWarn.push(name);
+            newCritical.push(name);
           }
         }
-        if (status === "ok" || status === "unset") {
-          notifiedKeys.delete(id + ":warn");
-          notifiedKeys.delete(id + ":critical");
+        if (status !== "critical") {
+          notifiedKeys.delete(key);
         }
       });
 
@@ -927,9 +919,8 @@
       // 이번 회차에서 새로 전이된 품목은 즉시 알리지 않고 대기열에 담아둡니다.
       // 몇 초 안에 다른 품목이 추가로 전이되면 같은 알림 하나에 합쳐지고,
       // 더 이상 새 전이가 없으면 그 시점에 한 번만 알림이 뜹니다.
-      if (newCritical.length || newWarn.length) {
+      if (newCritical.length) {
         pendingNotify.critical = pendingNotify.critical.concat(newCritical);
-        pendingNotify.warn = pendingNotify.warn.concat(newWarn);
         scheduleNotifyFlush();
       }
     }
