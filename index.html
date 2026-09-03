@@ -548,7 +548,10 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const productsCol = collection(db, "products");
-    const cycleRulesCol = collection(db, "cycleRules");
+    // 교체 주기 절대값 저장소: 별도 컬렉션은 Firestore 보안 규칙상 권한이 없어(테스트 완료),
+    // 매장별 슬롯과 동일한 stores/{storeId}/slots 경로 패턴을 재사용해 "_설정"이라는 가상 매장 아래에 저장합니다.
+    // STORES 목록에 없는 이름이라 매장 선택 화면에는 노출되지 않습니다.
+    const cycleRulesCol = collection(db, "stores", "_설정", "slots");
     const fsMethods = { collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy };
 
     function populateStoreSwitcher(currentStoreId) {
